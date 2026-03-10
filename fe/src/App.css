@@ -1,0 +1,146 @@
+/* ─── App Layout ─────────────────────────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+  position: relative;
+}
+
+/* Ambient mesh background */
+.app__bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.app__bg::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: 25%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.065) 0%, transparent 65%);
+}
+.app__bg::after {
+  content: '';
+  position: absolute;
+  bottom: 5%;
+  right: -5%;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.05) 0%, transparent 65%);
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+.app__header {
+  position: relative;
+  z-index: 10;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  background: rgba(12, 12, 23, 0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.app__header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, var(--accent-dim) 50%, transparent 95%);
+}
+
+.app__header-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.app__logo-mark {
+  width: 33px;
+  height: 33px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #b668ff, #7c3aed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.38);
+}
+
+.app__logo {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+  background: linear-gradient(135deg, #e4ccff, #c084fc, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.app__header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app__badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--accent-bright);
+  background: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+/* ─── Main Content ───────────────────────────────────────────────────────────── */
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px 24px;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.app__downloader { flex-shrink: 0; }
+
+.app__library {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Player Footer ──────────────────────────────────────────────────────────── */
+.app__player {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  position: relative;
+  z-index: 10;
+}
+.app__player::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, var(--accent-dim) 50%, transparent 95%);
+}

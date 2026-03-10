@@ -1,0 +1,141 @@
+/* ─── Reset & Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Background layers */
+  --bg-base: #07070d;
+  --bg-primary: #0c0c17;
+  --bg-surface: #12121e;
+  --bg-surface-2: #181828;
+  --bg-surface-3: #1e1e32;
+  --bg-surface-hover: #222238;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(168, 85, 247, 0.35);
+
+  /* Accent – purple/violet */
+  --accent: #a855f7;
+  --accent-bright: #c084fc;
+  --accent-hover: #9333ea;
+  --accent-dim: rgba(168, 85, 247, 0.12);
+  --accent-glow: rgba(168, 85, 247, 0.28);
+  --accent-glow-strong: rgba(168, 85, 247, 0.5);
+
+  /* Text */
+  --text-primary: #eeeef6;
+  --text-secondary: #7878a8;
+  --text-muted: #44446a;
+  --text-error: #f87171;
+  --text-success: #4ade80;
+
+  /* Dimensions */
+  --header-height: 64px;
+  --player-height: 96px;
+
+  /* Radii */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+input, button { outline: none; }
+input:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* Range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  margin-top: -4.5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  transition: transform 0.12s;
+}
+input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.35); }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin-disc { to { transform: rotate(360deg); } }
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes progress-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.75; }
+}
+@keyframes bar1 { 0%,100%{height:5px}  50%{height:16px} }
+@keyframes bar2 { 0%,100%{height:14px} 50%{height:5px}  }
+@keyframes bar3 { 0%,100%{height:9px}  50%{height:18px} }
+@keyframes bar4 { 0%,100%{height:12px} 50%{height:6px}  }
+
+/* ─── Shared skeleton ──────────────────────────────────────────────────── */
+.skeleton-line {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-2) 25%,
+    var(--bg-surface-3) 50%,
+    var(--bg-surface-2) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeleton-line--lg { width: 78%; height: 14px; margin-bottom: 8px; }
+.skeleton-line--sm { width: 48%; height: 11px; }
+

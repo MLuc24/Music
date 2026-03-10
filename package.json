@@ -1,0 +1,15 @@
+{
+  "name": "nhac",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "fe",
+    "be"
+  ],
+  "scripts": {
+    "dev:be": "cd be && npm run dev",
+    "dev:fe": "cd fe && npm run dev",
+    "build:be": "cd be && npm run build",
+    "build:fe": "cd fe && npm run build"
+  }
+}

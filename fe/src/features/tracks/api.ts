@@ -1,0 +1,11 @@
+import { api } from '../../lib/api';
+import type { Track } from '../../types/database';
+
+export const tracksApi = {
+  getAll: (): Promise<Track[]> => api.getTracks(),
+  delete: (id: string, storagePath: string): Promise<void> =>
+    api.deleteTrack(id, storagePath),
+  getStreamUrl: (storagePath: string): Promise<string> =>
+    api.getStreamUrl(storagePath),
+};
+
