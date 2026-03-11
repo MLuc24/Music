@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { listTracks, removeTrack, toggleFavorite } from '../modules/tracks/tracks.service.js';
+import { listTracks, removeTrack, toggleFavorite, updateTrackInfo } from '../modules/tracks/tracks.service.js';
 
 export async function getAllTracks(_req: Request, res: Response) {
   try {
@@ -38,6 +38,25 @@ export async function patchTrackFavorite(req: Request, res: Response) {
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to toggle favorite',
+    });
+  }
+}
+
+export async function patchTrackInfo(req: Request, res: Response) {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { title, artist } = req.body as { title?: unknown; artist?: unknown };
+
+    if (typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'title is required and must be a non-empty string' });
+    }
+
+    const artistValue = typeof artist === 'string' ? artist : null;
+    const track = await updateTrackInfo(id, title, artistValue);
+    res.json(track);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to update track',
     });
   }
 }

@@ -58,6 +58,16 @@ class ApiClient {
     return response.json();
   }
 
+  async updateTrack(id: string, title: string, artist: string | null): Promise<Track> {
+    const response = await fetch(`${this.baseUrl}/tracks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, artist }),
+    });
+    if (!response.ok) throw new Error('Failed to update track');
+    return response.json();
+  }
+
   async getAlbums(): Promise<AlbumWithCount[]> {
     const response = await fetch(`${this.baseUrl}/albums`);
     if (!response.ok) throw new Error('Failed to fetch albums');

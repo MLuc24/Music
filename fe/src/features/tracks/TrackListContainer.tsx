@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
-import { useTracks, useDeleteTrack, useToggleFavorite } from '../tracks/hooks';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useTracks, useDeleteTrack, useToggleFavorite, useUpdateTrack } from '../tracks/hooks';
 import { tracksApi } from '../tracks/api';
+import { recordPlay } from './useListeningHistory';
 import { usePlayerStore } from '../player/playerStore';
 import { useUIStore } from '../ui/uiStore';
 import type { Track } from '../../types/database';
@@ -31,6 +32,7 @@ export function TrackListContainer() {
   const { data: tracks, isLoading, isError } = useTracks();
   const { mutate: deleteTrack } = useDeleteTrack();
   const { mutate: toggleFavorite } = useToggleFavorite();
+  const { mutate: updateTrack } = useUpdateTrack();
   const { setCurrentTrack, currentTrack, isPlaying } = usePlayerStore();
   const { setPendingTrackForAlbum } = useUIStore();
 
@@ -46,9 +48,14 @@ export function TrackListContainer() {
     try {
       const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
       setCurrentTrack(track, streamUrl);
+      recordPlay(track.id);
     } catch {
       // silently ignore – no stream URL
     }
+  };
+
+  const handleRename = (track: Track, newTitle: string, newArtist: string | null) => {
+    updateTrack({ id: track.id, title: newTitle, artist: newArtist });
   };
 
   const handleDelete = (track: Track) => {
@@ -106,6 +113,7 @@ export function TrackListContainer() {
             onDelete={() => handleDelete(track)}
             onToggleFavorite={() => toggleFavorite(track.id)}
             onAddToAlbum={() => setPendingTrackForAlbum(track)}
+            onRename={(title, artist) => handleRename(track, title, artist)}
           />
         ))}
       </ul>
@@ -123,9 +131,38 @@ interface TrackItemProps {
   onDelete: () => void;
   onToggleFavorite: () => void;
   onAddToAlbum: () => void;
+  onRename: (title: string, artist: string | null) => void;
 }
 
-function TrackItem({ track, isActive, isPlaying, onPlay, onDelete, onToggleFavorite, onAddToAlbum }: TrackItemProps) {
+function TrackItem({ track, isActive, isPlaying, onPlay, onDelete, onToggleFavorite, onAddToAlbum, onRename }: TrackItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(track.title);
+  const [editArtist, setEditArtist] = useState(track.artist ?? '');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing) titleInputRef.current?.focus();
+  }, [isEditing]);
+
+  const handleEditStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTitle(track.title);
+    setEditArtist(track.artist ?? '');
+    setIsEditing(true);
+  };
+
+  const handleEditSave = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== track.title || editArtist.trim() !== (track.artist ?? '')) {
+      onRename(trimmed || track.title, editArtist.trim() || null);
+    }
+    setIsEditing(false);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleEditSave();
+    if (e.key === 'Escape') setIsEditing(false);
+  };
   return (
     <li className={`track-item${isActive ? ' track-item--active' : ''}`}>
       <div className="track-item__thumb-wrap" onClick={onPlay}>
@@ -153,8 +190,49 @@ function TrackItem({ track, isActive, isPlaying, onPlay, onDelete, onToggleFavor
       </div>
 
       <div className="track-item__info">
-        <p className="track-item__title">{track.title}</p>
-        {track.artist && <p className="track-item__artist">{track.artist}</p>}
+        {isEditing ? (
+          <div className="track-item__edit-fields">
+            <input
+              ref={titleInputRef}
+              className="track-item__edit-input"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              onBlur={handleEditSave}
+              placeholder="Tên bài hát"
+              maxLength={200}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <input
+              className="track-item__edit-input track-item__edit-input--artist"
+              value={editArtist}
+              onChange={(e) => setEditArtist(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              onBlur={handleEditSave}
+              placeholder="Nghệ sĩ (tùy chọn)"
+              maxLength={100}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="track-item__title-row">
+              <p className="track-item__title">{track.title}</p>
+              <button
+                className="track-item__edit-btn"
+                onClick={handleEditStart}
+                aria-label="Đổi tên bài hát"
+                title="Đổi tên (nhấn đúp tên)"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            </div>
+            {track.artist && <p className="track-item__artist">{track.artist}</p>}
+          </>
+        )}
       </div>
 
       <div className="track-item__actions">

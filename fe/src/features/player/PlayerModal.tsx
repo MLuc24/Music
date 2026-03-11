@@ -1,5 +1,11 @@
+import { useState } from 'react';
 import { usePlayerStore } from './playerStore';
 import { LyricsPanel } from '../lyrics/LyricsPanel';
+import { useTracks } from '../tracks/hooks';
+import { tracksApi } from '../tracks/api';
+import { recordPlay } from '../tracks/useListeningHistory';
+import { SuggestedTracks } from '../tracks/SuggestedTracks';
+import type { Track } from '../../types/database';
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -18,8 +24,35 @@ export function PlayerModal({ seek }: PlayerModalProps) {
   const {
     currentTrack, isPlaying, currentTime, duration, volume,
     isLooping, playbackRate,
-    setIsPlaying, setVolume, setIsLooping, setPlaybackRate, setIsModalOpen,
+    setIsPlaying, setVolume, setIsLooping, setPlaybackRate, setIsModalOpen, setCurrentTrack,
   } = usePlayerStore();
+  const { data: tracks } = useTracks();
+  const [historyVersion, setHistoryVersion] = useState(0);
+
+  // Dual-layer ambient crossfade — updated during render (no effect needed)
+  const [prevTrackId, setPrevTrackId] = useState<string | undefined>(currentTrack?.id);
+  const [ambient, setAmbient] = useState<{ a: string | null; b: string | null; top: 'a' | 'b' }>({
+    a: currentTrack?.thumbnail_url ?? null, b: null, top: 'a',
+  });
+
+  if (prevTrackId !== currentTrack?.id) {
+    setPrevTrackId(currentTrack?.id);
+    const url = currentTrack?.thumbnail_url ?? null;
+    setAmbient((prev) =>
+      prev.top === 'a' ? { ...prev, b: url, top: 'b' } : { ...prev, a: url, top: 'a' }
+    );
+  }
+
+  const handlePlaySuggestion = async (track: Track) => {
+    try {
+      const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
+      setCurrentTrack(track, streamUrl);
+      recordPlay(track.id);
+      setHistoryVersion((v) => v + 1);
+    } catch {
+      // ignore
+    }
+  };
 
   if (!currentTrack) return null;
 
@@ -27,10 +60,14 @@ export function PlayerModal({ seek }: PlayerModalProps) {
 
   return (
     <div className="player-modal" role="dialog" aria-modal="true" aria-label="Trình phát đầy đủ">
-      {/* Ambient blurred background from artwork */}
+      {/* Dual-layer ambient crossfade */}
       <div
         className="player-modal__ambient"
-        style={currentTrack.thumbnail_url ? { backgroundImage: `url(${currentTrack.thumbnail_url})` } : undefined}
+        style={{ backgroundImage: ambient.a ? `url(${ambient.a})` : undefined, opacity: ambient.top === 'a' ? 1 : 0 }}
+      />
+      <div
+        className="player-modal__ambient"
+        style={{ backgroundImage: ambient.b ? `url(${ambient.b})` : undefined, opacity: ambient.top === 'b' ? 1 : 0 }}
       />
 
       <div className="player-modal__inner">
@@ -48,11 +85,28 @@ export function PlayerModal({ seek }: PlayerModalProps) {
               </svg>
             </button>
             <p className="player-modal__now-playing">Đang phát</p>
-            <div className="player-modal__header-spacer" />
+            <div className="player-modal__shortcuts-area">
+              <button className="player-modal__shortcuts-btn" aria-label="Phím tắt" title="Phím tắt">
+                ?
+              </button>
+              <div className="player-modal__shortcuts-popup">
+                <div className="player-modal__shortcuts-grid">
+                  <kbd>0 – 9</kbd><span>Tua đến 0% – 90%</span>
+                  <kbd>Space / K</kbd><span>Phát / Dừng</span>
+                  <kbd>← →</kbd><span>±5 giây</span>
+                  <kbd>Shift + ← →</kbd><span>±30 giây</span>
+                  <kbd>↑ ↓</kbd><span>Âm lượng ±5%</span>
+                  <kbd>M</kbd><span>Tắt / Bật tiếng</span>
+                  <kbd>L</kbd><span>Bật / Tắt lặp</span>
+                  <kbd>{'< >'}</kbd><span>Giảm / Tăng tốc độ</span>
+                  <kbd>F / Esc</kbd><span>Mở / Đóng màn hình này</span>
+                </div>
+              </div>
+            </div>
           </header>
 
           {/* ── Vinyl disc artwork ── */}
-          <div className="player-modal__artwork-section">
+          <div key={currentTrack.id} className="player-modal__artwork-section">
             <div className={`player-modal__disc${isPlaying ? ' player-modal__disc--spinning' : ''}`}>
               {currentTrack.thumbnail_url ? (
                 <img
@@ -69,7 +123,7 @@ export function PlayerModal({ seek }: PlayerModalProps) {
           </div>
 
           {/* ── Track info ── */}
-          <div className="player-modal__track-info">
+          <div key={`info-${currentTrack.id}`} className="player-modal__track-info">
             <h2 className="player-modal__title">{currentTrack.title}</h2>
             {currentTrack.artist && <p className="player-modal__artist">{currentTrack.artist}</p>}
           </div>
@@ -196,24 +250,15 @@ export function PlayerModal({ seek }: PlayerModalProps) {
                 aria-label="Âm lượng"
               />
             </div>
-            <span className="player-modal__vol-pct">{Math.round(volume * 100)}%</span>
           </div>
 
-          {/* ── Keyboard shortcuts reference ── */}
-          <div className="player-modal__shortcuts">
-            <p className="player-modal__shortcuts-title">Phím tắt</p>
-            <div className="player-modal__shortcuts-grid">
-              <kbd>0 – 9</kbd><span>Tua đến 0% – 90%</span>
-              <kbd>Space / K</kbd><span>Phát / Dừng</span>
-              <kbd>← →</kbd><span>±5 giây</span>
-              <kbd>Shift + ← →</kbd><span>±30 giây</span>
-              <kbd>↑ ↓</kbd><span>Âm lượng ±5%</span>
-              <kbd>M</kbd><span>Tắt / Bật tiếng</span>
-              <kbd>L</kbd><span>Bật / Tắt lặp</span>
-              <kbd>{'< >'}</kbd><span>Giảm / Tăng tốc độ</span>
-              <kbd>F / Esc</kbd><span>Mở / Đóng màn hình này</span>
-            </div>
-          </div>
+          {/* ── Suggested tracks ── */}
+          <SuggestedTracks
+            tracks={tracks ?? []}
+            currentTrackId={currentTrack.id}
+            historyVersion={historyVersion}
+            onPlay={handlePlaySuggestion}
+          />
         </div>
 
         {/* ── RIGHT PANEL: Lyrics ── */}

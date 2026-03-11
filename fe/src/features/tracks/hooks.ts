@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tracksApi } from './api';
+import type { Track } from '../../types/database';
 
 export const TRACKS_QUERY_KEY = ['tracks'] as const;
 
@@ -29,6 +30,20 @@ export function useToggleFavorite() {
     mutationFn: (id: string) => tracksApi.toggleFavorite(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRACKS_QUERY_KEY });
+    },
+  });
+}
+
+export function useUpdateTrack() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, title, artist }: { id: string; title: string; artist: string | null }) =>
+      tracksApi.update(id, title, artist),
+    onSuccess: (updated: Track) => {
+      queryClient.setQueryData<Track[]>(TRACKS_QUERY_KEY, (old) =>
+        old ? old.map((t) => (t.id === updated.id ? updated : t)) : old,
+      );
     },
   });
 }

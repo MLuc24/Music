@@ -726,6 +726,172 @@
   white-space: nowrap;
 }
 
+/* ─── Track item title row + inline edit ────────────────────────────────────── */
+
+.track-item__title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.track-item__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  flex-shrink: 0;
+  padding: 0;
+  transition: opacity 100ms ease, color 100ms ease;
+}
+
+.track-item:hover .track-item__edit-btn {
+  opacity: 1;
+}
+
+.track-item__edit-btn:hover {
+  color: var(--accent);
+}
+
+.track-item__edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.track-item__edit-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  width: 100%;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+.track-item__edit-input--artist {
+  font-size: 12px;
+  font-weight: 400;
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.track-item__edit-input--artist:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+/* ─── Suggested Tracks ───────────────────────────────────────────────────────── */
+
+.track-suggestions {
+  width: 100%;
+  margin-top: 24px;
+  padding: 20px 0 8px;
+  border-top: 1px solid var(--border);
+}
+
+.track-suggestions__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.track-suggestions__title svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.track-suggestions__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 120ms ease;
+  outline: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item:focus-visible {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.04));
+}
+
+.suggestion-item--active {
+  background: rgba(124, 58, 237, 0.07);
+}
+
+.suggestion-item__thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.suggestion-item__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.suggestion-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-item__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-item__artist {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.suggestion-item__count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
 /* ─── Delete Button ─────────────────────────────────────────────────────────── */
 
 .track-item__delete {
@@ -1290,6 +1456,16 @@ a:hover {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pm-disc-enter {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pm-info-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Blurred artwork ambient background */
 .player-modal__ambient {
   position: absolute;
@@ -1299,6 +1475,7 @@ a:hover {
   background-color: var(--bg-base);
   filter: blur(50px) saturate(0.35) brightness(0.88);
   z-index: 0;
+  transition: opacity 0.55s ease;
 }
 
 /* Light overlay on top of ambient */
@@ -1340,9 +1517,11 @@ a:hover {
 
 .player-modal__panel--player {
   align-items: center;
-  max-width: 520px;
-  margin: 0 auto;
-  width: 100%;
+  position: relative;
+  /* Fill the full column so the scrollbar sits at the column edge (next to the divider).
+     Dynamic padding centers the content up to ~520px without a narrow scroll container. */
+  padding-left: max(32px, calc((100% - 520px) / 2));
+  padding-right: max(32px, calc((100% - 520px) / 2));
 }
 
 .player-modal__panel--lyrics {
@@ -1645,6 +1824,7 @@ a:hover {
   display: flex;
   justify-content: center;
   padding: 8px 0;
+  animation: pm-disc-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .player-modal__disc {
@@ -1706,6 +1886,7 @@ a:hover {
 .player-modal__track-info {
   width: 100%;
   text-align: center;
+  animation: pm-info-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .player-modal__title {
@@ -1967,7 +2148,7 @@ a:hover {
 .player-modal__volume {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap:  8px;
   width: 100%;
 }
 
@@ -2010,31 +2191,75 @@ a:hover {
 }
 
 .player-modal__vol-pct {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  min-width: 32px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  display: none;
 }
 
-/* ─── Keyboard shortcuts reference ──────────────────────────────────── */
+/* ─── Keyboard shortcuts — header ? button + popup ───────────────────── */
+
+.player-modal__shortcuts-area {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.player-modal__shortcuts-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--accent-bright);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 150ms ease, border-color 150ms ease;
+  line-height: 1;
+}
+
+.player-modal__shortcuts-area:hover .player-modal__shortcuts-btn {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: var(--accent);
+}
+
+.player-modal__shortcuts-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  background: var(--bg-elevated, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px 16px;
+  min-width: 270px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.player-modal__shortcuts-area:hover .player-modal__shortcuts-popup {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* legacy — no longer rendered */
+.player-modal__shortcuts-wrap,
+.player-modal__shortcuts-toggle,
+.player-modal__shortcuts-badge,
+.player-modal__shortcuts-chevron,
+.player-modal__shortcuts-chevron--open { display: none; }
 
 .player-modal__shortcuts {
   width: 100%;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
 }
 
 .player-modal__shortcuts-title {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  display: none;
 }
 
 .player-modal__shortcuts-grid {

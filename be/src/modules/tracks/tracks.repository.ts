@@ -47,6 +47,21 @@ export async function deleteTrack(id: string): Promise<void> {
   if (error) throw new Error(`Failed to delete track: ${error.message}`);
 }
 
+export async function updateTrackFields(
+  id: string,
+  fields: { title?: string; artist?: string | null },
+): Promise<Track> {
+  const { data, error } = await supabase
+    .from('tracks')
+    .update(fields)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to update track: ${error.message}`);
+  return data as Track;
+}
+
 export async function getTrackById(id: string): Promise<Track | null> {
   const { data, error } = await supabase
     .from('tracks')

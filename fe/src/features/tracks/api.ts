@@ -9,5 +9,7 @@ export const tracksApi = {
     api.getStreamUrl(storagePath),
   toggleFavorite: (id: string): Promise<Track> =>
     api.toggleFavorite(id),
+  update: (id: string, title: string, artist: string | null): Promise<Track> =>
+    api.updateTrack(id, title, artist),
 };
 
