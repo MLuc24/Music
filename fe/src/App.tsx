@@ -6,9 +6,16 @@ import './App.css';
 function App() {
   return (
     <div className="app">
+      <div className="app__bg" aria-hidden="true" />
+      
       <header className="app__header">
-        <span className="app__logo-icon">🎵</span>
-        <h1 className="app__logo">Nhạc</h1>
+        <div className="app__header-brand">
+          <div className="app__logo-mark">🎵</div>
+          <h1 className="app__logo">Nhạc</h1>
+        </div>
+        <div className="app__header-meta">
+          <span className="app__badge">Music Player</span>
+        </div>
       </header>
 
       <main className="app__main">

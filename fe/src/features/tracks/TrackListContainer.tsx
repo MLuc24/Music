@@ -99,6 +99,7 @@ function TrackItem({ track, isActive, isPlaying, onPlay, onDelete }: TrackItemPr
         className="track-item__delete"
         onClick={onDelete}
         aria-label={`Xóa ${track.title}`}
+        title="Xóa bài hát"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="3 6 5 6 21 6" />

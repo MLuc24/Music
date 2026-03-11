@@ -90,8 +90,8 @@ export function DownloaderContainer() {
 
       {urlError && <p className="downloader__field-error">{urlError}</p>}
 
-      {(isLoadingPreview || preview) && !state.isDownloading && (
-        <div className="downloader__preview">
+      {(isLoadingPreview || preview) && (
+        <div className={`downloader__preview${state.isDownloading ? ' downloader__preview--downloading' : ''}`}>
           {isLoadingPreview ? (
             <div className="downloader__preview-skeleton">
               <div className="downloader__preview-thumb-skeleton" />
@@ -109,7 +109,9 @@ export function DownloaderContainer() {
               />
               <div className="downloader__preview-info">
                 <p className="downloader__preview-title">{preview.title}</p>
-                <p className="downloader__preview-label">YouTube Video</p>
+                <p className="downloader__preview-label">
+                  {state.isDownloading ? '⏬ Đang tải xuống...' : 'YouTube Video'}
+                </p>
               </div>
             </>
           ) : null}

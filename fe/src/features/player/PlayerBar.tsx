@@ -17,7 +17,7 @@ export function PlayerBar() {
 
   return (
     <div className="player-bar">
-      <TrackInfo track={currentTrack} />
+      <TrackInfo track={currentTrack} isPlaying={isPlaying} />
       <PlayerControls
         isPlaying={isPlaying}
         currentTime={currentTime}
@@ -32,12 +32,23 @@ export function PlayerBar() {
 
 // ─── Presentational sub-components ────────────────────────────────────────────
 
-function TrackInfo({ track }: { track: { title: string; artist: string | null; thumbnail_url: string | null } }) {
+function TrackInfo({ 
+  track, 
+  isPlaying 
+}: { 
+  track: { title: string; artist: string | null; thumbnail_url: string | null };
+  isPlaying: boolean;
+}) {
   return (
     <div className="player-bar__track">
       <div className="player-bar__thumb-wrap">
         {track.thumbnail_url ? (
-          <img className="player-bar__thumb" src={track.thumbnail_url} alt={track.title} />
+          <img 
+            className="player-bar__thumb" 
+            src={track.thumbnail_url} 
+            alt={track.title}
+            style={{ animationPlayState: isPlaying ? 'running' : 'paused' } as React.CSSProperties}
+          />
         ) : (
           <div className="player-bar__thumb player-bar__thumb--placeholder">🎵</div>
         )}
@@ -108,6 +119,7 @@ function VolumeControl({ volume, onVolumeChange }: { volume: number; onVolumeCha
         className="player-bar__volume-icon"
         onClick={() => onVolumeChange(volume > 0 ? 0 : 0.8)}
         aria-label={volume === 0 ? 'Bật âm' : 'Tắt âm'}
+        title={volume === 0 ? 'Bật âm' : 'Tắt tiếng'}
       >
         {volume === 0 ? (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
