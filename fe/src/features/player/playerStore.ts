@@ -8,6 +8,9 @@ interface PlayerState {
   duration: number;
   volume: number;
   streamUrl: string | null;
+  isModalOpen: boolean;
+  isLooping: boolean;
+  playbackRate: number;
 
   setCurrentTrack: (track: Track, streamUrl: string) => void;
   setIsPlaying: (isPlaying: boolean) => void;
@@ -15,6 +18,9 @@ interface PlayerState {
   setDuration: (duration: number) => void;
   setVolume: (volume: number) => void;
   clearPlayer: () => void;
+  setIsModalOpen: (open: boolean) => void;
+  setIsLooping: (looping: boolean) => void;
+  setPlaybackRate: (rate: number) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -24,6 +30,9 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   duration: 0,
   volume: 0.8,
   streamUrl: null,
+  isModalOpen: false,
+  isLooping: false,
+  playbackRate: 1,
 
   setCurrentTrack: (track, streamUrl) =>
     set({ currentTrack: track, streamUrl, isPlaying: true, currentTime: 0 }),
@@ -33,4 +42,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   setVolume: (volume) => set({ volume }),
   clearPlayer: () =>
     set({ currentTrack: null, isPlaying: false, streamUrl: null, currentTime: 0, duration: 0 }),
+  setIsModalOpen: (isModalOpen) => set({ isModalOpen }),
+  setIsLooping: (isLooping) => set({ isLooping }),
+  setPlaybackRate: (playbackRate) => set({ playbackRate }),
 }));

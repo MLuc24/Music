@@ -1,9 +1,17 @@
 import { DownloaderContainer } from './features/downloader/DownloaderContainer';
 import { TrackListContainer } from './features/tracks/TrackListContainer';
 import { PlayerBar } from './features/player/PlayerBar';
+import { PlayerModal } from './features/player/PlayerModal';
+import { useAudioSync } from './features/player/useAudioSync';
+import { usePlayerKeyboard } from './features/player/usePlayerKeyboard';
+import { usePlayerStore } from './features/player/playerStore';
 import './App.css';
 
 function App() {
+  const { seek } = useAudioSync();
+  usePlayerKeyboard(seek);
+  const { isModalOpen } = usePlayerStore();
+
   return (
     <div className="app">
       <div className="app__bg" aria-hidden="true" />
@@ -29,8 +37,10 @@ function App() {
       </main>
 
       <footer className="app__player">
-        <PlayerBar />
+        <PlayerBar seek={seek} />
       </footer>
+
+      {isModalOpen && <PlayerModal seek={seek} />}
     </div>
   );
 }
