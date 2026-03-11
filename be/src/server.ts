@@ -3,6 +3,8 @@ import cors from 'cors';
 import tracksRoutes from './routes/tracks.routes.js';
 import downloadRoutes from './routes/download.routes.js';
 import playerRoutes from './routes/player.routes.js';
+import lyricsRoutes from './routes/lyrics.routes.js';
+import albumsRoutes from './routes/albums.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,6 +17,8 @@ app.use(express.json());
 app.use('/api/tracks', tracksRoutes);
 app.use('/api/download', downloadRoutes);
 app.use('/api/player', playerRoutes);
+app.use('/api/lyrics', lyricsRoutes);
+app.use('/api/albums', albumsRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

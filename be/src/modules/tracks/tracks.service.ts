@@ -1,4 +1,4 @@
-import { getAllTracks, createTrack, deleteTrack } from './tracks.repository.js';
+import { getAllTracks, createTrack, deleteTrack, toggleTrackFavorite } from './tracks.repository.js';
 import { deleteAudio } from '../storage/storage.service.js';
 import type { Track, TrackInsert } from './tracks.types.js';
 
@@ -13,4 +13,8 @@ export async function addTrack(insert: TrackInsert): Promise<Track> {
 export async function removeTrack(id: string, storagePath: string): Promise<void> {
   await deleteTrack(id);
   await deleteAudio(storagePath);
+}
+
+export async function toggleFavorite(id: string): Promise<Track> {
+  return toggleTrackFavorite(id);
 }

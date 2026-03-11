@@ -7,5 +7,7 @@ export const tracksApi = {
     api.deleteTrack(id, storagePath),
   getStreamUrl: (storagePath: string): Promise<string> =>
     api.getStreamUrl(storagePath),
+  toggleFavorite: (id: string): Promise<Track> =>
+    api.toggleFavorite(id),
 };
 

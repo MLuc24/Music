@@ -1,4 +1,5 @@
 import { usePlayerStore } from './playerStore';
+import { LyricsPanel } from '../lyrics/LyricsPanel';
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -33,183 +34,191 @@ export function PlayerModal({ seek }: PlayerModalProps) {
       />
 
       <div className="player-modal__inner">
-        {/* ── Header ── */}
-        <header className="player-modal__header">
-          <button
-            className="player-modal__icon-btn"
-            onClick={() => setIsModalOpen(false)}
-            aria-label="Thu gọn"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-          <p className="player-modal__now-playing">Đang phát</p>
-          <div className="player-modal__header-spacer" />
-        </header>
+        {/* ── LEFT PANEL: Player controls ── */}
+        <div className="player-modal__panel player-modal__panel--player">
+          {/* ── Header ── */}
+          <header className="player-modal__header">
+            <button
+              className="player-modal__icon-btn"
+              onClick={() => setIsModalOpen(false)}
+              aria-label="Thu gọn"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <p className="player-modal__now-playing">Đang phát</p>
+            <div className="player-modal__header-spacer" />
+          </header>
 
-        {/* ── Vinyl disc artwork ── */}
-        <div className="player-modal__artwork-section">
-          <div className={`player-modal__disc${isPlaying ? ' player-modal__disc--spinning' : ''}`}>
-            {currentTrack.thumbnail_url ? (
-              <img
-                className="player-modal__artwork"
-                src={currentTrack.thumbnail_url}
-                alt={currentTrack.title}
+          {/* ── Vinyl disc artwork ── */}
+          <div className="player-modal__artwork-section">
+            <div className={`player-modal__disc${isPlaying ? ' player-modal__disc--spinning' : ''}`}>
+              {currentTrack.thumbnail_url ? (
+                <img
+                  className="player-modal__artwork"
+                  src={currentTrack.thumbnail_url}
+                  alt={currentTrack.title}
+                />
+              ) : (
+                <div className="player-modal__artwork player-modal__artwork--placeholder">🎵</div>
+              )}
+              <div className="player-modal__disc-shadow" />
+              <div className="player-modal__disc-hole" />
+            </div>
+          </div>
+
+          {/* ── Track info ── */}
+          <div className="player-modal__track-info">
+            <h2 className="player-modal__title">{currentTrack.title}</h2>
+            {currentTrack.artist && <p className="player-modal__artist">{currentTrack.artist}</p>}
+          </div>
+
+          {/* ── Progress bar ── */}
+          <div className="player-modal__progress">
+            <div className="player-modal__seekbar-wrap">
+              <div className="player-modal__seekbar-bg" />
+              <div className="player-modal__seekbar-fill" style={{ width: `${progress}%` }} />
+              <input
+                className="player-modal__seekbar"
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={(e) => seek(Number(e.target.value))}
+                aria-label="Tua nhạc"
               />
-            ) : (
-              <div className="player-modal__artwork player-modal__artwork--placeholder">🎵</div>
-            )}
-            <div className="player-modal__disc-shadow" />
-            <div className="player-modal__disc-hole" />
+            </div>
+
+            {/* Quick-jump segment markers */}
+            <div className="player-modal__markers" aria-hidden="true">
+              {[{ pct: 25, label: '¼' }, { pct: 50, label: '½' }, { pct: 75, label: '¾' }].map(({ pct, label }) => (
+                <button
+                  key={pct}
+                  className="player-modal__marker"
+                  style={{ left: `${pct}%` }}
+                  onClick={() => seek(duration * pct / 100)}
+                  title={`Tua đến ${pct}% (phím ${pct / 10})`}
+                  tabIndex={-1}
+                >
+                  <span className="player-modal__marker-pip" />
+                  <span className="player-modal__marker-label">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="player-modal__time-row">
+              <span className="player-modal__time">{formatTime(currentTime)}</span>
+              <span className="player-modal__time">{formatTime(duration)}</span>
+            </div>
           </div>
-        </div>
 
-        {/* ── Track info ── */}
-        <div className="player-modal__track-info">
-          <h2 className="player-modal__title">{currentTrack.title}</h2>
-          {currentTrack.artist && <p className="player-modal__artist">{currentTrack.artist}</p>}
-        </div>
-
-        {/* ── Progress bar ── */}
-        <div className="player-modal__progress">
-          <div className="player-modal__seekbar-wrap">
-            <div className="player-modal__seekbar-bg" />
-            <div className="player-modal__seekbar-fill" style={{ width: `${progress}%` }} />
-            <input
-              className="player-modal__seekbar"
-              type="range"
-              min={0}
-              max={duration || 100}
-              value={currentTime}
-              onChange={(e) => seek(Number(e.target.value))}
-              aria-label="Tua nhạc"
+          {/* ── Main controls ── */}
+          <div className="player-modal__controls">
+            <SkipButton
+              seconds={30}
+              direction="back"
+              onClick={() => seek(Math.max(0, currentTime - 30))}
+              title="Lùi 30 giây (Shift+←)"
+            />
+            <SkipButton
+              seconds={10}
+              direction="back"
+              onClick={() => seek(Math.max(0, currentTime - 10))}
+              title="Lùi 10 giây (←)"
+            />
+            <button
+              className="player-modal__play-btn"
+              onClick={() => setIsPlaying(!isPlaying)}
+              aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
+            >
+              {isPlaying ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
+            </button>
+            <SkipButton
+              seconds={10}
+              direction="forward"
+              onClick={() => seek(Math.min(duration, currentTime + 10))}
+              title="Tiến 10 giây (→)"
+            />
+            <SkipButton
+              seconds={30}
+              direction="forward"
+              onClick={() => seek(Math.min(duration, currentTime + 30))}
+              title="Tiến 30 giây (Shift+→)"
             />
           </div>
 
-          {/* Quick-jump segment markers */}
-          <div className="player-modal__markers" aria-hidden="true">
-            {[{ pct: 25, label: '¼' }, { pct: 50, label: '½' }, { pct: 75, label: '¾' }].map(({ pct, label }) => (
-              <button
-                key={pct}
-                className="player-modal__marker"
-                style={{ left: `${pct}%` }}
-                onClick={() => seek(duration * pct / 100)}
-                title={`Tua đến ${pct}% (phím ${pct / 10})`}
-                tabIndex={-1}
-              >
-                <span className="player-modal__marker-pip" />
-                <span className="player-modal__marker-label">{label}</span>
-              </button>
-            ))}
+          {/* ── Secondary: loop + speed ── */}
+          <div className="player-modal__secondary">
+            <button
+              className={`player-modal__loop-btn${isLooping ? ' player-modal__loop-btn--active' : ''}`}
+              onClick={() => setIsLooping(!isLooping)}
+              title="Lặp lại (L)"
+              aria-pressed={isLooping}
+            >
+              <LoopIcon />
+              <span>Lặp</span>
+            </button>
+
+            <div className="player-modal__speed-group" role="group" aria-label="Tốc độ phát">
+              {RATES.map((r) => (
+                <button
+                  key={r}
+                  className={`player-modal__speed-btn${playbackRate === r ? ' player-modal__speed-btn--active' : ''}`}
+                  onClick={() => setPlaybackRate(r)}
+                  title={`Tốc độ ${r}x (phím < >)`}
+                >
+                  {r}x
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="player-modal__time-row">
-            <span className="player-modal__time">{formatTime(currentTime)}</span>
-            <span className="player-modal__time">{formatTime(duration)}</span>
+          {/* ── Volume ── */}
+          <div className="player-modal__volume">
+            <button
+              className="player-modal__icon-btn"
+              onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
+              aria-label={volume === 0 ? 'Bật âm' : 'Tắt tiếng'}
+            >
+              {volume === 0 ? <VolumeMuteIcon /> : <VolumeIcon />}
+            </button>
+            <div className="player-modal__vol-wrap">
+              <div className="player-modal__vol-bg" />
+              <div className="player-modal__vol-fill" style={{ width: `${volume * 100}%` }} />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                aria-label="Âm lượng"
+              />
+            </div>
+            <span className="player-modal__vol-pct">{Math.round(volume * 100)}%</span>
           </div>
-        </div>
 
-        {/* ── Main controls ── */}
-        <div className="player-modal__controls">
-          <SkipButton
-            seconds={30}
-            direction="back"
-            onClick={() => seek(Math.max(0, currentTime - 30))}
-            title="Lùi 30 giây (Shift+←)"
-          />
-          <SkipButton
-            seconds={10}
-            direction="back"
-            onClick={() => seek(Math.max(0, currentTime - 10))}
-            title="Lùi 10 giây (←)"
-          />
-          <button
-            className="player-modal__play-btn"
-            onClick={() => setIsPlaying(!isPlaying)}
-            aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
-          >
-            {isPlaying ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
-          </button>
-          <SkipButton
-            seconds={10}
-            direction="forward"
-            onClick={() => seek(Math.min(duration, currentTime + 10))}
-            title="Tiến 10 giây (→)"
-          />
-          <SkipButton
-            seconds={30}
-            direction="forward"
-            onClick={() => seek(Math.min(duration, currentTime + 30))}
-            title="Tiến 30 giây (Shift+→)"
-          />
-        </div>
-
-        {/* ── Secondary: loop + speed ── */}
-        <div className="player-modal__secondary">
-          <button
-            className={`player-modal__loop-btn${isLooping ? ' player-modal__loop-btn--active' : ''}`}
-            onClick={() => setIsLooping(!isLooping)}
-            title="Lặp lại (L)"
-            aria-pressed={isLooping}
-          >
-            <LoopIcon />
-            <span>Lặp</span>
-          </button>
-
-          <div className="player-modal__speed-group" role="group" aria-label="Tốc độ phát">
-            {RATES.map((r) => (
-              <button
-                key={r}
-                className={`player-modal__speed-btn${playbackRate === r ? ' player-modal__speed-btn--active' : ''}`}
-                onClick={() => setPlaybackRate(r)}
-                title={`Tốc độ ${r}x (phím < >)`}
-              >
-                {r}x
-              </button>
-            ))}
+          {/* ── Keyboard shortcuts reference ── */}
+          <div className="player-modal__shortcuts">
+            <p className="player-modal__shortcuts-title">Phím tắt</p>
+            <div className="player-modal__shortcuts-grid">
+              <kbd>0 – 9</kbd><span>Tua đến 0% – 90%</span>
+              <kbd>Space / K</kbd><span>Phát / Dừng</span>
+              <kbd>← →</kbd><span>±5 giây</span>
+              <kbd>Shift + ← →</kbd><span>±30 giây</span>
+              <kbd>↑ ↓</kbd><span>Âm lượng ±5%</span>
+              <kbd>M</kbd><span>Tắt / Bật tiếng</span>
+              <kbd>L</kbd><span>Bật / Tắt lặp</span>
+              <kbd>{'< >'}</kbd><span>Giảm / Tăng tốc độ</span>
+              <kbd>F / Esc</kbd><span>Mở / Đóng màn hình này</span>
+            </div>
           </div>
         </div>
 
-        {/* ── Volume ── */}
-        <div className="player-modal__volume">
-          <button
-            className="player-modal__icon-btn"
-            onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
-            aria-label={volume === 0 ? 'Bật âm' : 'Tắt tiếng'}
-          >
-            {volume === 0 ? <VolumeMuteIcon /> : <VolumeIcon />}
-          </button>
-          <div className="player-modal__vol-wrap">
-            <div className="player-modal__vol-bg" />
-            <div className="player-modal__vol-fill" style={{ width: `${volume * 100}%` }} />
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              aria-label="Âm lượng"
-            />
-          </div>
-          <span className="player-modal__vol-pct">{Math.round(volume * 100)}%</span>
-        </div>
-
-        {/* ── Keyboard shortcuts reference ── */}
-        <div className="player-modal__shortcuts">
-          <p className="player-modal__shortcuts-title">Phím tắt</p>
-          <div className="player-modal__shortcuts-grid">
-            <kbd>0 – 9</kbd><span>Tua đến 0% – 90%</span>
-            <kbd>Space / K</kbd><span>Phát / Dừng</span>
-            <kbd>← →</kbd><span>±5 giây</span>
-            <kbd>Shift + ← →</kbd><span>±30 giây</span>
-            <kbd>↑ ↓</kbd><span>Âm lượng ±5%</span>
-            <kbd>M</kbd><span>Tắt / Bật tiếng</span>
-            <kbd>L</kbd><span>Bật / Tắt lặp</span>
-            <kbd>{'< >'}</kbd><span>Giảm / Tăng tốc độ</span>
-            <kbd>F / Esc</kbd><span>Mở / Đóng màn hình này</span>
-          </div>
+        {/* ── RIGHT PANEL: Lyrics ── */}
+        <div className="player-modal__panel player-modal__panel--lyrics">
+          <LyricsPanel track={currentTrack} currentTime={currentTime} />
         </div>
       </div>
     </div>

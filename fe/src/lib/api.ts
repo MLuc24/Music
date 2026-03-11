@@ -1,4 +1,4 @@
-import type { Track } from '../types/database';
+import type { Track, AlbumWithCount, AlbumDetail, Album } from '../types/database';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -48,6 +48,67 @@ class ApiClient {
     const response = await fetch(`${this.baseUrl}/download/preview?url=${encodeURIComponent(url)}`);
     if (!response.ok) throw new Error('Failed to get preview');
     return response.json();
+  }
+
+  async toggleFavorite(id: string): Promise<Track> {
+    const response = await fetch(`${this.baseUrl}/tracks/${id}/favorite`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) throw new Error('Failed to toggle favorite');
+    return response.json();
+  }
+
+  async getAlbums(): Promise<AlbumWithCount[]> {
+    const response = await fetch(`${this.baseUrl}/albums`);
+    if (!response.ok) throw new Error('Failed to fetch albums');
+    return response.json();
+  }
+
+  async getAlbumDetail(id: string): Promise<AlbumDetail> {
+    const response = await fetch(`${this.baseUrl}/albums/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch album');
+    return response.json();
+  }
+
+  async createAlbum(name: string, description?: string): Promise<Album> {
+    const response = await fetch(`${this.baseUrl}/albums`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: description ?? null, cover_url: null }),
+    });
+    if (!response.ok) throw new Error('Failed to create album');
+    return response.json();
+  }
+
+  async updateAlbum(id: string, name: string, description?: string): Promise<Album> {
+    const response = await fetch(`${this.baseUrl}/albums/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: description ?? null }),
+    });
+    if (!response.ok) throw new Error('Failed to update album');
+    return response.json();
+  }
+
+  async deleteAlbum(id: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/albums/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Failed to delete album');
+  }
+
+  async addTrackToAlbum(albumId: string, trackId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/albums/${albumId}/tracks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackId }),
+    });
+    if (!response.ok) throw new Error('Failed to add track to album');
+  }
+
+  async removeTrackFromAlbum(albumId: string, trackId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/albums/${albumId}/tracks/${trackId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to remove track from album');
   }
 
   async downloadAudio(

@@ -2,34 +2,34 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Background layers */
-  --bg-base: #07070d;
-  --bg-primary: #0c0c17;
-  --bg-surface: #12121e;
-  --bg-surface-2: #181828;
-  --bg-surface-3: #1e1e32;
-  --bg-surface-hover: #222238;
+  /* Background layers — light theme */
+  --bg-base: #f4f3ff;
+  --bg-primary: #ece9ff;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f0eeff;
+  --bg-surface-3: #e8e4ff;
+  --bg-surface-hover: #ede8ff;
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.07);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --border-accent: rgba(168, 85, 247, 0.35);
+  --border: rgba(139, 92, 246, 0.15);
+  --border-subtle: rgba(139, 92, 246, 0.07);
+  --border-strong: rgba(139, 92, 246, 0.28);
+  --border-accent: rgba(139, 92, 246, 0.45);
 
-  /* Accent – purple/violet */
-  --accent: #a855f7;
-  --accent-bright: #c084fc;
-  --accent-hover: #9333ea;
-  --accent-dim: rgba(168, 85, 247, 0.12);
-  --accent-glow: rgba(168, 85, 247, 0.28);
-  --accent-glow-strong: rgba(168, 85, 247, 0.5);
+  /* Accent – purple/violet (deeper for light bg) */
+  --accent: #7c3aed;
+  --accent-bright: #9333ea;
+  --accent-hover: #6d28d9;
+  --accent-dim: rgba(124, 58, 237, 0.1);
+  --accent-glow: rgba(124, 58, 237, 0.22);
+  --accent-glow-strong: rgba(124, 58, 237, 0.38);
 
   /* Text */
-  --text-primary: #eeeef6;
-  --text-secondary: #7878a8;
-  --text-muted: #44446a;
-  --text-error: #f87171;
-  --text-success: #4ade80;
+  --text-primary: #1a1035;
+  --text-secondary: #5b4d8a;
+  --text-muted: #9a8ec0;
+  --text-error: #dc2626;
+  --text-success: #16a34a;
 
   /* Dimensions */
   --header-height: 64px;
@@ -54,6 +54,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   position: relative;
+  color-scheme: light;
 }
 
 /* Subtle noise texture overlay for premium feel */
@@ -85,8 +86,8 @@ input:focus-visible, button:focus-visible {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.18); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.32); }
 
 /* Range input */
 input[type="range"] {

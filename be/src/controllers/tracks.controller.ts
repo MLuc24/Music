@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { listTracks, removeTrack } from '../modules/tracks/tracks.service.js';
+import { listTracks, removeTrack, toggleFavorite } from '../modules/tracks/tracks.service.js';
 
 export async function getAllTracks(_req: Request, res: Response) {
   try {
@@ -26,6 +26,18 @@ export async function deleteTrack(req: Request, res: Response) {
   } catch (error) {
     res.status(500).json({ 
       error: error instanceof Error ? error.message : 'Failed to delete track' 
+    });
+  }
+}
+
+export async function patchTrackFavorite(req: Request, res: Response) {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const track = await toggleFavorite(id);
+    res.json(track);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to toggle favorite',
     });
   }
 }

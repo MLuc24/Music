@@ -6,6 +6,7 @@ export interface Track {
   duration_seconds: number | null;
   thumbnail_url: string | null;
   artist: string | null;
+  is_favorite: boolean;
   created_at: string;
   updated_at: string;
 }

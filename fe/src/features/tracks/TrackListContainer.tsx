@@ -1,19 +1,53 @@
-import { useTracks, useDeleteTrack } from '../tracks/hooks';
+import { useState, useMemo } from 'react';
+import { useTracks, useDeleteTrack, useToggleFavorite } from '../tracks/hooks';
 import { tracksApi } from '../tracks/api';
 import { usePlayerStore } from '../player/playerStore';
+import { useUIStore } from '../ui/uiStore';
 import type { Track } from '../../types/database';
+
+type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'artist_asc';
+
+const SORT_LABELS: Record<SortOption, string> = {
+  newest: 'Mới nhất',
+  oldest: 'Cũ nhất',
+  title_asc: 'Tên A→Z',
+  title_desc: 'Tên Z→A',
+  artist_asc: 'Nghệ sĩ A→Z',
+};
+
+function sortTracks(tracks: Track[], sort: SortOption): Track[] {
+  return [...tracks].sort((a, b) => {
+    switch (sort) {
+      case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case 'title_asc': return a.title.localeCompare(b.title, 'vi');
+      case 'title_desc': return b.title.localeCompare(a.title, 'vi');
+      case 'artist_asc': return (a.artist ?? '').localeCompare(b.artist ?? '', 'vi');
+    }
+  });
+}
 
 export function TrackListContainer() {
   const { data: tracks, isLoading, isError } = useTracks();
   const { mutate: deleteTrack } = useDeleteTrack();
+  const { mutate: toggleFavorite } = useToggleFavorite();
   const { setCurrentTrack, currentTrack, isPlaying } = usePlayerStore();
+  const { setPendingTrackForAlbum } = useUIStore();
+
+  const [sort, setSort] = useState<SortOption>('newest');
+  const [showFavOnly, setShowFavOnly] = useState(false);
+
+  const displayTracks = useMemo(() => {
+    const base = showFavOnly ? (tracks ?? []).filter((t) => t.is_favorite) : (tracks ?? []);
+    return sortTracks(base, sort);
+  }, [tracks, sort, showFavOnly]);
 
   const handlePlay = async (track: Track) => {
     try {
       const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
       setCurrentTrack(track, streamUrl);
     } catch {
-      // TODO: show toast notification
+      // silently ignore – no stream URL
     }
   };
 
@@ -35,10 +69,34 @@ export function TrackListContainer() {
   return (
     <div className="track-list-wrapper">
       <div className="track-list__header">
-        <span className="track-list__count">{tracks.length} bài hát</span>
+        <span className="track-list__count">
+          {displayTracks.length}{showFavOnly ? ' yêu thích' : ' bài hát'}
+        </span>
+        <div className="track-list__controls">
+          <button
+            className={`track-list__fav-toggle${showFavOnly ? ' track-list__fav-toggle--active' : ''}`}
+            onClick={() => setShowFavOnly((v) => !v)}
+            title={showFavOnly ? 'Hiển thị tất cả' : 'Chỉ yêu thích'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={showFavOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            Yêu thích
+          </button>
+          <select
+            className="track-list__sort-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            aria-label="Sắp xếp"
+          >
+            {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
+              <option key={opt} value={opt}>{SORT_LABELS[opt]}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <ul className="track-list" role="list">
-        {tracks.map((track) => (
+        {displayTracks.map((track) => (
           <TrackItem
             key={track.id}
             track={track}
@@ -46,6 +104,8 @@ export function TrackListContainer() {
             isPlaying={currentTrack?.id === track.id && isPlaying}
             onPlay={() => handlePlay(track)}
             onDelete={() => handleDelete(track)}
+            onToggleFavorite={() => toggleFavorite(track.id)}
+            onAddToAlbum={() => setPendingTrackForAlbum(track)}
           />
         ))}
       </ul>
@@ -61,9 +121,11 @@ interface TrackItemProps {
   isPlaying: boolean;
   onPlay: () => void;
   onDelete: () => void;
+  onToggleFavorite: () => void;
+  onAddToAlbum: () => void;
 }
 
-function TrackItem({ track, isActive, isPlaying, onPlay, onDelete }: TrackItemProps) {
+function TrackItem({ track, isActive, isPlaying, onPlay, onDelete, onToggleFavorite, onAddToAlbum }: TrackItemProps) {
   return (
     <li className={`track-item${isActive ? ' track-item--active' : ''}`}>
       <div className="track-item__thumb-wrap" onClick={onPlay}>
@@ -95,19 +157,45 @@ function TrackItem({ track, isActive, isPlaying, onPlay, onDelete }: TrackItemPr
         {track.artist && <p className="track-item__artist">{track.artist}</p>}
       </div>
 
-      <button
-        className="track-item__delete"
-        onClick={onDelete}
-        aria-label={`Xóa ${track.title}`}
-        title="Xóa bài hát"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-          <path d="M10 11v6M14 11v6" />
-          <path d="M9 6V4h6v2" />
-        </svg>
-      </button>
+      <div className="track-item__actions">
+        <button
+          className={`track-item__fav-btn${track.is_favorite ? ' track-item__fav-btn--active' : ''}`}
+          onClick={onToggleFavorite}
+          aria-label={track.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+          title={track.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={track.is_favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
+        <button
+          className="track-item__album-btn"
+          onClick={onAddToAlbum}
+          aria-label="Thêm vào album"
+          title="Thêm vào album"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+            <line x1="18" y1="13" x2="18" y2="7" />
+            <line x1="15" y1="7" x2="21" y2="7" />
+          </svg>
+        </button>
+        <button
+          className="track-item__delete"
+          onClick={onDelete}
+          aria-label={`Xóa ${track.title}`}
+          title="Xóa bài hát"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4h6v2" />
+          </svg>
+        </button>
+      </div>
     </li>
   );
 }
@@ -121,3 +209,4 @@ function EmptyState() {
     </div>
   );
 }
+

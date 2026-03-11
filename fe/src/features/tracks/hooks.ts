@@ -21,3 +21,15 @@ export function useDeleteTrack() {
     },
   });
 }
+
+export function useToggleFavorite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => tracksApi.toggleFavorite(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRACKS_QUERY_KEY });
+    },
+  });
+}
+

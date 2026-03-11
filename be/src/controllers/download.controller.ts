@@ -64,6 +64,7 @@ export async function downloadYouTubeAudio(req: Request, res: Response) {
       duration_seconds: null,
       thumbnail_url: thumbnailUrl,
       artist: null,
+      is_favorite: false,
     });
     console.log('✅ Database save complete');
 
