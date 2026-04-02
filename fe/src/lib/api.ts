@@ -38,7 +38,7 @@ class ApiClient {
   }
 
   async getStreamUrl(storagePath: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/player/${encodeURIComponent(storagePath)}`);
+    const response = await fetch(`${this.baseUrl}/player?path=${encodeURIComponent(storagePath)}`);
     if (!response.ok) throw new Error('Failed to get stream URL');
     const data = await response.json();
     return data.url;

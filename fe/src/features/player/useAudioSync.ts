@@ -13,6 +13,7 @@ export function useAudioSync() {
   // Initialize audio element once
   useEffect(() => {
     audioRef.current = new Audio();
+    audioRef.current.preload = 'metadata';
     return () => {
       audioRef.current?.pause();
       audioRef.current = null;
@@ -32,7 +33,10 @@ export function useAudioSync() {
   useEffect(() => {
     if (!audioRef.current || !streamUrl) return;
     if (isPlaying) {
-      audioRef.current.play().catch(() => setIsPlaying(false));
+      audioRef.current.play().catch((error) => {
+        console.error('Audio playback failed:', error);
+        setIsPlaying(false);
+      });
     } else {
       audioRef.current.pause();
     }
@@ -61,15 +65,21 @@ export function useAudioSync() {
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
     const onDurationChange = () => setDuration(audio.duration || 0);
     const onEnded = () => setIsPlaying(false);
+    const onError = () => {
+      console.error('Audio element error:', audio.error);
+      setIsPlaying(false);
+    };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('durationchange', onDurationChange);
     audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
 
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
     };
   }, [setCurrentTime, setDuration, setIsPlaying]);
 

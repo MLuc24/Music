@@ -21,8 +21,8 @@ export function AlbumDetailContainer({ albumId }: Props) {
     try {
       const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
       setCurrentTrack(track, streamUrl);
-    } catch {
-      // silently ignore
+    } catch (error) {
+      console.error('Failed to play album track:', track.id, track.storage_path, error);
     }
   };
 

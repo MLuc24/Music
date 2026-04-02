@@ -5,7 +5,9 @@ const BUCKET = 'audio';
 
 export async function uploadAudio(trackId: string, localFilePath: string): Promise<string> {
   const fileBuffer = await fs.readFile(localFilePath);
-  const storagePath = `audio/${trackId}.mp3`;
+  // Keep new uploads at the bucket root so playback URLs do not depend on
+  // slash-containing route params and storage policies stay simple.
+  const storagePath = `${trackId}.mp3`;
 
   const { error } = await supabase.storage
     .from(BUCKET)

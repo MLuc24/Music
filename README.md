@@ -43,7 +43,7 @@ cp fe/.env.example fe/.env
 ```bash
 cd be
 npm run dev
-# Server chạy tại http://localhost:3001
+# Server chạy tại http://localhost:3101
 ```
 
 **Terminal 2 - FE:**
@@ -72,7 +72,7 @@ npm run preview
 - `GET /api/tracks` - Lấy danh sách tracks
 - `DELETE /api/tracks/:id` - Xóa track
 - `POST /api/download` - Download audio từ YouTube (SSE stream)
-- `GET /api/player/:storagePath` - Lấy signed URL để stream
+- `GET /api/player?path=...` - Lấy signed URL để stream
 
 ## Tech Stack
 

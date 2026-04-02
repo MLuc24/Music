@@ -49,8 +49,8 @@ export function PlayerModal({ seek }: PlayerModalProps) {
       setCurrentTrack(track, streamUrl);
       recordPlay(track.id);
       setHistoryVersion((v) => v + 1);
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error('Failed to play suggested track:', track.id, track.storage_path, error);
     }
   };
 

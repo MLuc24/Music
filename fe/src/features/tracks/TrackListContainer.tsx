@@ -49,8 +49,8 @@ export function TrackListContainer() {
       const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
       setCurrentTrack(track, streamUrl);
       recordPlay(track.id);
-    } catch {
-      // silently ignore – no stream URL
+    } catch (error) {
+      console.error('Failed to play track:', track.id, track.storage_path, error);
     }
   };
 

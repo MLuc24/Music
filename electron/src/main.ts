@@ -6,6 +6,7 @@ import { ChildProcess, fork } from 'child_process';
 
 // ── Disable GPU sandbox issues on Linux ───────────────────────────────────────
 app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 let mainWindow: BrowserWindow | null = null;
 let beProcess: ChildProcess | null = null;
