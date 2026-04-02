@@ -16,22 +16,13 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       CSC_IDENTITY_AUTO_DISCOVERY: false
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             platform: win
             ytdlp_asset: yt-dlp.exe
             ytdlp_dest: electron/resources/yt-dlp.exe
-
-          - os: macos-latest
-            platform: mac
-            ytdlp_asset: yt-dlp_macos
-            ytdlp_dest: electron/resources/yt-dlp
-
-          - os: ubuntu-latest
-            platform: linux
-            ytdlp_asset: yt-dlp_linux
-            ytdlp_dest: electron/resources/yt-dlp
 
     runs-on: ${{ matrix.os }}
 
