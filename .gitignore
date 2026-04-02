@@ -9,6 +9,14 @@ node_modules/
 # Build outputs
 fe/dist/
 be/dist/
+be/public/
+electron/dist/
+dist-electron/
+
+# yt-dlp binaries (downloaded by CI — do not commit)
+electron/resources/yt-dlp
+electron/resources/yt-dlp.exe
+electron/resources/yt-dlp-macos
 
 # TypeScript incremental info
 *.tsbuildinfo

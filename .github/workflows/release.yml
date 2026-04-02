@@ -1,0 +1,96 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            ytdlp_asset: yt-dlp.exe
+            ytdlp_dest: electron/resources/yt-dlp.exe
+
+          - os: macos-latest
+            platform: mac
+            ytdlp_asset: yt-dlp_macos
+            ytdlp_dest: electron/resources/yt-dlp
+
+          - os: ubuntu-latest
+            platform: linux
+            ytdlp_asset: yt-dlp_linux
+            ytdlp_dest: electron/resources/yt-dlp
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js setup ─────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # ── 3. Install all workspace dependencies ────────────────────────────────
+      - name: Install dependencies
+        run: npm install
+
+      # ── 4. Install cross-env for build scripts ───────────────────────────────
+      - name: Install cross-env
+        run: npm install -g cross-env
+
+      # ── 5. Download yt-dlp binary ─────────────────────────────────────────────
+      - name: Download yt-dlp binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path electron/resources | Out-Null
+          $latest = (Invoke-RestMethod -Uri "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest").tag_name
+          Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/download/$latest/yt-dlp.exe" -OutFile "electron/resources/yt-dlp.exe"
+
+      - name: Download yt-dlp binary (macOS/Linux)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p electron/resources
+          LATEST=$(curl -s https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          curl -L "https://github.com/yt-dlp/yt-dlp/releases/download/${LATEST}/${{ matrix.ytdlp_asset }}" -o "${{ matrix.ytdlp_dest }}"
+          chmod +x "${{ matrix.ytdlp_dest }}"
+
+      # ── 6. Build FE ───────────────────────────────────────────────────────────
+      - name: Build FE
+        env:
+          VITE_API_URL: /api
+        run: npm run build:fe
+
+      # ── 7. Copy FE dist → be/public ──────────────────────────────────────────
+      - name: Copy FE output
+        run: node scripts/copy-fe-dist.mjs
+
+      # ── 8. Bundle BE with esbuild ─────────────────────────────────────────────
+      - name: Bundle BE
+        run: node be/esbuild.electron.mjs
+
+      # ── 9. Compile Electron TypeScript ───────────────────────────────────────
+      - name: Compile Electron TS
+        run: npm run build:electron:ts
+
+      # ── 10. Build & publish Electron installer ───────────────────────────────
+      - name: Build & publish Electron app (${{ matrix.platform }})
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm --workspace electron run build:${{ matrix.platform }}:publish

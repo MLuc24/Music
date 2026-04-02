@@ -1,0 +1,83 @@
+appId: com.nhac.desktop
+productName: Nhạc
+copyright: Copyright © 2026
+
+# Files to include from the electron/ folder after build
+files:
+  - dist/**
+  - node_modules/**
+  - package.json
+
+# Extra resources (yt-dlp binaries + BE bundle) placed into resources/
+extraResources:
+  - from: resources/node_modules
+    to: node_modules
+    filter:
+      - "**/*"
+  - from: resources/yt-dlp.exe
+    to: yt-dlp.exe
+    filter:
+      - "**/*"
+  - from: resources/public
+    to: public
+    filter:
+      - "**/*"
+  - from: resources/runtime-config.json
+    to: runtime-config.json
+  - from: dist/be-bundle.cjs
+    to: be-bundle.cjs
+
+# Output directory (relative to repo root via build:electron script)
+directories:
+  output: ../dist-electron
+
+# Windows
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerLanguages:
+    - en_US
+    - vi_VN
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+# macOS
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.icns
+  category: public.app-category.music
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+
+dmg:
+  background: resources/dmg-background.png
+  sign: false
+
+# Linux
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: resources/icon.png
+  category: Audio
+
+publish:
+  provider: github
+  owner: MLuc24
+  repo: Music
+  releaseType: release
+

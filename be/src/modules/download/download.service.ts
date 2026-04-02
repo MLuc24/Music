@@ -11,11 +11,20 @@ ffmpeg.setFfmpegPath(ffmpegPath.path);
 // Get the actual class from the module
 const YTDlpWrapClass = (YTDlpWrap as any).default || YTDlpWrap;
 
-// Initialize yt-dlp with default binary path (platform-aware)
-const ytDlpBinaryPath = path.join(
-  process.cwd(), 
-  os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
-);
+// ── yt-dlp binary path resolution ──────────────────────────────────────────
+// When running inside a packaged Electron app, ELECTRON_RESOURCES_PATH is set
+// by electron/src/main.ts's fork() env. In that case binaries live in resources/.
+// In dev mode or standalone Node, fall back to process.cwd().
+function getYtDlpBinaryPath(): string {
+  const binaryName = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+  const resourcesPath = process.env.ELECTRON_RESOURCES_PATH;
+  if (resourcesPath) {
+    return path.join(resourcesPath, binaryName);
+  }
+  return path.join(process.cwd(), binaryName);
+}
+
+const ytDlpBinaryPath = getYtDlpBinaryPath();
 const ytDlp = new YTDlpWrapClass(ytDlpBinaryPath);
 
 // Download yt-dlp binary if not exists
