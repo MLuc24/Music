@@ -37,6 +37,7 @@ win:
     - target: nsis
       arch:
         - x64
+  artifactName: nhac-desktop-setup-${version}.${ext}
   signAndEditExecutable: false
 
 nsis:
