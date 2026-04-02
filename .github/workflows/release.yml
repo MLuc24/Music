@@ -46,6 +46,11 @@ jobs:
       - name: Install cross-env
         run: npm install -g cross-env
 
+      - name: Validate Supabase secrets
+        shell: pwsh
+        run: |
+          node -e 'const decodeRole = (token) => { const payload = token.split(".")[1]; if (!payload) throw new Error("Invalid JWT format"); const normalized = payload.replace(/-/g, "+").replace(/_/g, "/"); const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4); return JSON.parse(Buffer.from(padded, "base64").toString("utf8")).role; }; const url = process.env.SUPABASE_URL; const anon = process.env.SUPABASE_ANON_KEY; const service = process.env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !anon || !service) throw new Error("Missing required Supabase secrets"); if (anon === service) throw new Error("SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY must not be identical"); const anonRole = decodeRole(anon); const serviceRole = decodeRole(service); if (anonRole !== "anon") throw new Error(`SUPABASE_ANON_KEY has wrong role: ${anonRole}`); if (serviceRole !== "service_role") throw new Error(`SUPABASE_SERVICE_ROLE_KEY has wrong role: ${serviceRole}`); console.log(`Supabase secrets validated: anon=${anonRole}, service=${serviceRole}`);'
+
       # ── 5. Download yt-dlp binary ─────────────────────────────────────────────
       - name: Download yt-dlp binary (Windows)
         if: matrix.os == 'windows-latest'
