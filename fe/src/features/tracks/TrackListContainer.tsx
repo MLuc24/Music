@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTracks, useDeleteTrack, useToggleFavorite, useUpdateTrack } from '../tracks/hooks';
 import { tracksApi } from '../tracks/api';
 import { recordPlay } from './useListeningHistory';
@@ -33,8 +33,10 @@ export function TrackListContainer() {
   const { mutate: deleteTrack } = useDeleteTrack();
   const { mutate: toggleFavorite } = useToggleFavorite();
   const { mutate: updateTrack } = useUpdateTrack();
-  const { setCurrentTrack, currentTrack, isPlaying } = usePlayerStore();
-  const { setPendingTrackForAlbum } = useUIStore();
+  const setCurrentTrack = usePlayerStore((state) => state.setCurrentTrack);
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const setPendingTrackForAlbum = useUIStore((state) => state.setPendingTrackForAlbum);
 
   const [sort, setSort] = useState<SortOption>('newest');
   const [showFavOnly, setShowFavOnly] = useState(false);
@@ -107,8 +109,8 @@ export function TrackListContainer() {
           <TrackItem
             key={track.id}
             track={track}
-            isActive={currentTrack?.id === track.id}
-            isPlaying={currentTrack?.id === track.id && isPlaying}
+            isActive={currentTrackId === track.id}
+            isPlaying={currentTrackId === track.id && isPlaying}
             onPlay={() => handlePlay(track)}
             onDelete={() => handleDelete(track)}
             onToggleFavorite={() => toggleFavorite(track.id)}
@@ -134,7 +136,16 @@ interface TrackItemProps {
   onRename: (title: string, artist: string | null) => void;
 }
 
-function TrackItem({ track, isActive, isPlaying, onPlay, onDelete, onToggleFavorite, onAddToAlbum, onRename }: TrackItemProps) {
+const TrackItem = memo(function TrackItem({
+  track,
+  isActive,
+  isPlaying,
+  onPlay,
+  onDelete,
+  onToggleFavorite,
+  onAddToAlbum,
+  onRename,
+}: TrackItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(track.title);
   const [editArtist, setEditArtist] = useState(track.artist ?? '');
@@ -276,7 +287,7 @@ function TrackItem({ track, isActive, isPlaying, onPlay, onDelete, onToggleFavor
       </div>
     </li>
   );
-}
+});
 
 function EmptyState() {
   return (

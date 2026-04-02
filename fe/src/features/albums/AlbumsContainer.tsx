@@ -8,7 +8,7 @@ export function AlbumsContainer() {
   const { mutate: createAlbum, isPending: isCreating } = useCreateAlbum();
   const { mutate: deleteAlbum } = useDeleteAlbum();
   const { mutate: updateAlbum } = useUpdateAlbum();
-  const { setSelectedAlbumId } = useUIStore();
+  const setSelectedAlbumId = useUIStore((state) => state.setSelectedAlbumId);
 
   const [newName, setNewName] = useState('');
   const [editingAlbum, setEditingAlbum] = useState<{ id: string; name: string } | null>(null);

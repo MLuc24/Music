@@ -14,8 +14,11 @@ import './App.css';
 function App() {
   const { seek } = useAudioSync();
   usePlayerKeyboard(seek);
-  const { isModalOpen } = usePlayerStore();
-  const { activeTab, setActiveTab, selectedAlbumId, pendingTrackForAlbum } = useUIStore();
+  const isModalOpen = usePlayerStore((state) => state.isModalOpen);
+  const activeTab = useUIStore((state) => state.activeTab);
+  const setActiveTab = useUIStore((state) => state.setActiveTab);
+  const selectedAlbumId = useUIStore((state) => state.selectedAlbumId);
+  const pendingTrackForAlbum = useUIStore((state) => state.pendingTrackForAlbum);
 
   return (
     <div className="app">

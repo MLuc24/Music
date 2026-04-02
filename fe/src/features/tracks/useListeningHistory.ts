@@ -8,17 +8,23 @@ interface PlayRecord {
 }
 
 type HistoryMap = Record<string, PlayRecord>;
+let historyCache: HistoryMap | null = null;
 
 function loadHistory(): HistoryMap {
+  if (historyCache) return historyCache;
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as HistoryMap) : {};
+    historyCache = raw ? (JSON.parse(raw) as HistoryMap) : {};
   } catch {
-    return {};
+    historyCache = {};
   }
+
+  return historyCache;
 }
 
 function saveHistory(map: HistoryMap): void {
+  historyCache = map;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
   } catch {
@@ -27,7 +33,7 @@ function saveHistory(map: HistoryMap): void {
 }
 
 export function recordPlay(trackId: string): void {
-  const map = loadHistory();
+  const map = { ...loadHistory() };
   const existing = map[trackId];
   map[trackId] = {
     trackId,

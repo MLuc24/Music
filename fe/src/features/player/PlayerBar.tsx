@@ -12,11 +12,16 @@ interface PlayerBarProps {
 }
 
 export function PlayerBar({ seek }: PlayerBarProps) {
-  const {
-    currentTrack, isPlaying, currentTime, duration, volume,
-    isLooping, playbackRate,
-    setIsPlaying, setVolume, setIsModalOpen,
-  } = usePlayerStore();
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const currentTime = usePlayerStore((state) => state.currentTime);
+  const duration = usePlayerStore((state) => state.duration);
+  const volume = usePlayerStore((state) => state.volume);
+  const isLooping = usePlayerStore((state) => state.isLooping);
+  const playbackRate = usePlayerStore((state) => state.playbackRate);
+  const setIsPlaying = usePlayerStore((state) => state.setIsPlaying);
+  const setVolume = usePlayerStore((state) => state.setVolume);
+  const setIsModalOpen = usePlayerStore((state) => state.setIsModalOpen);
 
   if (!currentTrack) return null;
 

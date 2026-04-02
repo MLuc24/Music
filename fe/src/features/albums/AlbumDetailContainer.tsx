@@ -14,8 +14,12 @@ export function AlbumDetailContainer({ albumId }: Props) {
   const { data: allTracks } = useTracks();
   const { mutate: removeTrack } = useRemoveTrackFromAlbum();
   const { mutate: addTrack } = useAddTrackToAlbum();
-  const { setSelectedAlbumId, isAddTracksOpen, setIsAddTracksOpen } = useUIStore();
-  const { setCurrentTrack, currentTrack, isPlaying } = usePlayerStore();
+  const setSelectedAlbumId = useUIStore((state) => state.setSelectedAlbumId);
+  const isAddTracksOpen = useUIStore((state) => state.isAddTracksOpen);
+  const setIsAddTracksOpen = useUIStore((state) => state.setIsAddTracksOpen);
+  const setCurrentTrack = usePlayerStore((state) => state.setCurrentTrack);
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
 
   const handlePlay = async (track: Track) => {
     try {
@@ -75,7 +79,7 @@ export function AlbumDetailContainer({ albumId }: Props) {
           {data.tracks.map((track) => (
             <li
               key={track.id}
-              className={`track-item${currentTrack?.id === track.id ? ' track-item--active' : ''}`}
+              className={`track-item${currentTrackId === track.id ? ' track-item--active' : ''}`}
             >
               <div className="track-item__thumb-wrap" onClick={() => handlePlay(track)}>
                 {track.thumbnail_url ? (
@@ -91,7 +95,7 @@ export function AlbumDetailContainer({ albumId }: Props) {
                   </div>
                 )}
                 <div className="track-item__thumb-overlay">
-                  {currentTrack?.id === track.id && isPlaying ? (
+                  {currentTrackId === track.id && isPlaying ? (
                     <span className="track-item__playing-bars">
                       <span /><span /><span />
                     </span>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePlayerStore } from './playerStore';
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -20,18 +20,34 @@ const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
  *   Esc          → close modal
  */
 export function usePlayerKeyboard(seek: (time: number) => void): void {
-  const {
-    isPlaying, currentTime, duration, volume, isLooping,
-    playbackRate, isModalOpen, currentTrack,
-    setIsPlaying, setVolume, setIsLooping, setPlaybackRate, setIsModalOpen,
-  } = usePlayerStore();
+  const seekRef = useRef(seek);
 
   useEffect(() => {
-    if (!currentTrack) return;
+    seekRef.current = seek;
+  }, [seek]);
 
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const {
+        isPlaying,
+        currentTime,
+        duration,
+        volume,
+        isLooping,
+        playbackRate,
+        isModalOpen,
+        currentTrack,
+        setIsPlaying,
+        setVolume,
+        setIsLooping,
+        setPlaybackRate,
+        setIsModalOpen,
+      } = usePlayerStore.getState();
+
+      if (!currentTrack) return;
 
       switch (e.key) {
         case ' ':
@@ -44,17 +60,17 @@ export function usePlayerKeyboard(seek: (time: number) => void): void {
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
           e.preventDefault();
-          seek((duration * Number(e.key)) / 10);
+          seekRef.current((duration * Number(e.key)) / 10);
           break;
 
         case 'ArrowLeft':
           e.preventDefault();
-          seek(Math.max(0, currentTime - (e.shiftKey ? 30 : 5)));
+          seekRef.current(Math.max(0, currentTime - (e.shiftKey ? 30 : 5)));
           break;
 
         case 'ArrowRight':
           e.preventDefault();
-          seek(Math.min(duration, currentTime + (e.shiftKey ? 30 : 5)));
+          seekRef.current(Math.min(duration, currentTime + (e.shiftKey ? 30 : 5)));
           break;
 
         case 'ArrowUp':
@@ -106,9 +122,5 @@ export function usePlayerKeyboard(seek: (time: number) => void): void {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [
-    isPlaying, currentTime, duration, volume, isLooping,
-    playbackRate, isModalOpen, currentTrack, seek,
-    setIsPlaying, setVolume, setIsLooping, setPlaybackRate, setIsModalOpen,
-  ]);
+  }, []);
 }

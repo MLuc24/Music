@@ -1,14 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { usePlayerStore } from './playerStore';
 
 /** Syncs the HTML audio element with the player Zustand store.
  *  Must be called exactly ONCE — in App.tsx — and seek passed down as prop. */
 export function useAudioSync() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const {
-    streamUrl, isPlaying, volume, isLooping, playbackRate,
-    setCurrentTime, setDuration, setIsPlaying,
-  } = usePlayerStore();
+  const streamUrl = usePlayerStore((state) => state.streamUrl);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const volume = usePlayerStore((state) => state.volume);
+  const isLooping = usePlayerStore((state) => state.isLooping);
+  const playbackRate = usePlayerStore((state) => state.playbackRate);
+  const setCurrentTime = usePlayerStore((state) => state.setCurrentTime);
+  const setDuration = usePlayerStore((state) => state.setDuration);
+  const setIsPlaying = usePlayerStore((state) => state.setIsPlaying);
 
   // Initialize audio element once
   useEffect(() => {
@@ -23,11 +27,22 @@ export function useAudioSync() {
   // Sync stream URL
   useEffect(() => {
     if (!audioRef.current) return;
-    if (streamUrl) {
-      audioRef.current.src = streamUrl;
-      audioRef.current.load();
+    const audio = audioRef.current;
+
+    if (!streamUrl) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      setCurrentTime(0);
+      setDuration(0);
+      return;
     }
-  }, [streamUrl]);
+
+    if (audio.src !== streamUrl) {
+      audio.src = streamUrl;
+      audio.load();
+    }
+  }, [streamUrl, setCurrentTime, setDuration]);
 
   // Sync play/pause
   useEffect(() => {
@@ -83,9 +98,9 @@ export function useAudioSync() {
     };
   }, [setCurrentTime, setDuration, setIsPlaying]);
 
-  const seek = (time: number) => {
+  const seek = useCallback((time: number) => {
     if (audioRef.current) audioRef.current.currentTime = time;
-  };
+  }, []);
 
   return { seek };
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlayerStore } from './playerStore';
 import { LyricsPanel } from '../lyrics/LyricsPanel';
 import { useTracks } from '../tracks/hooks';
@@ -21,46 +21,55 @@ interface PlayerModalProps {
 }
 
 export function PlayerModal({ seek }: PlayerModalProps) {
-  const {
-    currentTrack, isPlaying, currentTime, duration, volume,
-    isLooping, playbackRate,
-    setIsPlaying, setVolume, setIsLooping, setPlaybackRate, setIsModalOpen, setCurrentTrack,
-  } = usePlayerStore();
+  const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
+  const currentTime = usePlayerStore((state) => state.currentTime);
+  const duration = usePlayerStore((state) => state.duration);
+  const volume = usePlayerStore((state) => state.volume);
+  const isLooping = usePlayerStore((state) => state.isLooping);
+  const playbackRate = usePlayerStore((state) => state.playbackRate);
+  const setIsPlaying = usePlayerStore((state) => state.setIsPlaying);
+  const setVolume = usePlayerStore((state) => state.setVolume);
+  const setIsLooping = usePlayerStore((state) => state.setIsLooping);
+  const setPlaybackRate = usePlayerStore((state) => state.setPlaybackRate);
+  const setIsModalOpen = usePlayerStore((state) => state.setIsModalOpen);
+  const setCurrentTrack = usePlayerStore((state) => state.setCurrentTrack);
   const { data: tracks } = useTracks();
   const [historyVersion, setHistoryVersion] = useState(0);
-
-  // Dual-layer ambient crossfade — updated during render (no effect needed)
-  const [prevTrackId, setPrevTrackId] = useState<string | undefined>(currentTrack?.id);
+  const previousTrackIdRef = useRef<string | undefined>(currentTrack?.id);
   const [ambient, setAmbient] = useState<{ a: string | null; b: string | null; top: 'a' | 'b' }>({
-    a: currentTrack?.thumbnail_url ?? null, b: null, top: 'a',
+    a: currentTrack?.thumbnail_url ?? null,
+    b: null,
+    top: 'a',
   });
 
-  if (prevTrackId !== currentTrack?.id) {
-    setPrevTrackId(currentTrack?.id);
+  useEffect(() => {
+    if (previousTrackIdRef.current === currentTrack?.id) return;
+
+    previousTrackIdRef.current = currentTrack?.id;
     const url = currentTrack?.thumbnail_url ?? null;
     setAmbient((prev) =>
-      prev.top === 'a' ? { ...prev, b: url, top: 'b' } : { ...prev, a: url, top: 'a' }
+      prev.top === 'a' ? { ...prev, b: url, top: 'b' } : { ...prev, a: url, top: 'a' },
     );
-  }
+  }, [currentTrack?.id, currentTrack?.thumbnail_url]);
 
-  const handlePlaySuggestion = async (track: Track) => {
+  const handlePlaySuggestion = useCallback(async (track: Track) => {
     try {
       const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
       setCurrentTrack(track, streamUrl);
       recordPlay(track.id);
-      setHistoryVersion((v) => v + 1);
+      setHistoryVersion((version) => version + 1);
     } catch (error) {
       console.error('Failed to play suggested track:', track.id, track.storage_path, error);
     }
-  };
+  }, [setCurrentTrack]);
 
   if (!currentTrack) return null;
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="player-modal" role="dialog" aria-modal="true" aria-label="Trình phát đầy đủ">
-      {/* Dual-layer ambient crossfade */}
+    <div className="player-modal" role="dialog" aria-modal="true" aria-label="TrÃ¬nh phÃ¡t Ä‘áº§y Ä‘á»§">
       <div
         className="player-modal__ambient"
         style={{ backgroundImage: ambient.a ? `url(${ambient.a})` : undefined, opacity: ambient.top === 'a' ? 1 : 0 }}
@@ -71,41 +80,38 @@ export function PlayerModal({ seek }: PlayerModalProps) {
       />
 
       <div className="player-modal__inner">
-        {/* ── LEFT PANEL: Player controls ── */}
         <div className="player-modal__panel player-modal__panel--player">
-          {/* ── Header ── */}
           <header className="player-modal__header">
             <button
               className="player-modal__icon-btn"
               onClick={() => setIsModalOpen(false)}
-              aria-label="Thu gọn"
+              aria-label="Thu gá»n"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
-            <p className="player-modal__now-playing">Đang phát</p>
+            <p className="player-modal__now-playing">Äang phÃ¡t</p>
             <div className="player-modal__shortcuts-area">
-              <button className="player-modal__shortcuts-btn" aria-label="Phím tắt" title="Phím tắt">
+              <button className="player-modal__shortcuts-btn" aria-label="PhÃ­m táº¯t" title="PhÃ­m táº¯t">
                 ?
               </button>
               <div className="player-modal__shortcuts-popup">
                 <div className="player-modal__shortcuts-grid">
-                  <kbd>0 – 9</kbd><span>Tua đến 0% – 90%</span>
-                  <kbd>Space / K</kbd><span>Phát / Dừng</span>
-                  <kbd>← →</kbd><span>±5 giây</span>
-                  <kbd>Shift + ← →</kbd><span>±30 giây</span>
-                  <kbd>↑ ↓</kbd><span>Âm lượng ±5%</span>
-                  <kbd>M</kbd><span>Tắt / Bật tiếng</span>
-                  <kbd>L</kbd><span>Bật / Tắt lặp</span>
-                  <kbd>{'< >'}</kbd><span>Giảm / Tăng tốc độ</span>
-                  <kbd>F / Esc</kbd><span>Mở / Đóng màn hình này</span>
+                  <kbd>0 â€“ 9</kbd><span>Tua Ä‘áº¿n 0% â€“ 90%</span>
+                  <kbd>Space / K</kbd><span>PhÃ¡t / Dá»«ng</span>
+                  <kbd>â† â†’</kbd><span>Â±5 giÃ¢y</span>
+                  <kbd>Shift + â† â†’</kbd><span>Â±30 giÃ¢y</span>
+                  <kbd>â†‘ â†“</kbd><span>Ã‚m lÆ°á»£ng Â±5%</span>
+                  <kbd>M</kbd><span>Táº¯t / Báº­t tiáº¿ng</span>
+                  <kbd>L</kbd><span>Báº­t / Táº¯t láº·p</span>
+                  <kbd>{'< >'}</kbd><span>Giáº£m / TÄƒng tá»‘c Ä‘á»™</span>
+                  <kbd>F / Esc</kbd><span>Má»Ÿ / ÄÃ³ng mÃ n hÃ¬nh nÃ y</span>
                 </div>
               </div>
             </div>
           </header>
 
-          {/* ── Vinyl disc artwork ── */}
           <div key={currentTrack.id} className="player-modal__artwork-section">
             <div className={`player-modal__disc${isPlaying ? ' player-modal__disc--spinning' : ''}`}>
               {currentTrack.thumbnail_url ? (
@@ -115,20 +121,18 @@ export function PlayerModal({ seek }: PlayerModalProps) {
                   alt={currentTrack.title}
                 />
               ) : (
-                <div className="player-modal__artwork player-modal__artwork--placeholder">🎵</div>
+                <div className="player-modal__artwork player-modal__artwork--placeholder">ðŸŽµ</div>
               )}
               <div className="player-modal__disc-shadow" />
               <div className="player-modal__disc-hole" />
             </div>
           </div>
 
-          {/* ── Track info ── */}
           <div key={`info-${currentTrack.id}`} className="player-modal__track-info">
             <h2 className="player-modal__title">{currentTrack.title}</h2>
             {currentTrack.artist && <p className="player-modal__artist">{currentTrack.artist}</p>}
           </div>
 
-          {/* ── Progress bar ── */}
           <div className="player-modal__progress">
             <div className="player-modal__seekbar-wrap">
               <div className="player-modal__seekbar-bg" />
@@ -140,19 +144,18 @@ export function PlayerModal({ seek }: PlayerModalProps) {
                 max={duration || 100}
                 value={currentTime}
                 onChange={(e) => seek(Number(e.target.value))}
-                aria-label="Tua nhạc"
+                aria-label="Tua nháº¡c"
               />
             </div>
 
-            {/* Quick-jump segment markers */}
             <div className="player-modal__markers" aria-hidden="true">
-              {[{ pct: 25, label: '¼' }, { pct: 50, label: '½' }, { pct: 75, label: '¾' }].map(({ pct, label }) => (
+              {[{ pct: 25, label: 'Â¼' }, { pct: 50, label: 'Â½' }, { pct: 75, label: 'Â¾' }].map(({ pct, label }) => (
                 <button
                   key={pct}
                   className="player-modal__marker"
                   style={{ left: `${pct}%` }}
-                  onClick={() => seek(duration * pct / 100)}
-                  title={`Tua đến ${pct}% (phím ${pct / 10})`}
+                  onClick={() => seek((duration * pct) / 100)}
+                  title={`Tua Ä‘áº¿n ${pct}% (phÃ­m ${pct / 10})`}
                   tabIndex={-1}
                 >
                   <span className="player-modal__marker-pip" />
@@ -167,24 +170,23 @@ export function PlayerModal({ seek }: PlayerModalProps) {
             </div>
           </div>
 
-          {/* ── Main controls ── */}
           <div className="player-modal__controls">
             <SkipButton
               seconds={30}
               direction="back"
               onClick={() => seek(Math.max(0, currentTime - 30))}
-              title="Lùi 30 giây (Shift+←)"
+              title="LÃ¹i 30 giÃ¢y (Shift+â†)"
             />
             <SkipButton
               seconds={10}
               direction="back"
               onClick={() => seek(Math.max(0, currentTime - 10))}
-              title="Lùi 10 giây (←)"
+              title="LÃ¹i 10 giÃ¢y (â†)"
             />
             <button
               className="player-modal__play-btn"
               onClick={() => setIsPlaying(!isPlaying)}
-              aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
+              aria-label={isPlaying ? 'Táº¡m dá»«ng' : 'PhÃ¡t'}
             >
               {isPlaying ? <PauseIcon size={28} /> : <PlayIcon size={28} />}
             </button>
@@ -192,35 +194,34 @@ export function PlayerModal({ seek }: PlayerModalProps) {
               seconds={10}
               direction="forward"
               onClick={() => seek(Math.min(duration, currentTime + 10))}
-              title="Tiến 10 giây (→)"
+              title="Tiáº¿n 10 giÃ¢y (â†’)"
             />
             <SkipButton
               seconds={30}
               direction="forward"
               onClick={() => seek(Math.min(duration, currentTime + 30))}
-              title="Tiến 30 giây (Shift+→)"
+              title="Tiáº¿n 30 giÃ¢y (Shift+â†’)"
             />
           </div>
 
-          {/* ── Secondary: loop + speed ── */}
           <div className="player-modal__secondary">
             <button
               className={`player-modal__loop-btn${isLooping ? ' player-modal__loop-btn--active' : ''}`}
               onClick={() => setIsLooping(!isLooping)}
-              title="Lặp lại (L)"
+              title="Láº·p láº¡i (L)"
               aria-pressed={isLooping}
             >
               <LoopIcon />
-              <span>Lặp</span>
+              <span>Láº·p</span>
             </button>
 
-            <div className="player-modal__speed-group" role="group" aria-label="Tốc độ phát">
+            <div className="player-modal__speed-group" role="group" aria-label="Tá»‘c Ä‘á»™ phÃ¡t">
               {RATES.map((r) => (
                 <button
                   key={r}
                   className={`player-modal__speed-btn${playbackRate === r ? ' player-modal__speed-btn--active' : ''}`}
                   onClick={() => setPlaybackRate(r)}
-                  title={`Tốc độ ${r}x (phím < >)`}
+                  title={`Tá»‘c Ä‘á»™ ${r}x (phÃ­m < >)`}
                 >
                   {r}x
                 </button>
@@ -228,12 +229,11 @@ export function PlayerModal({ seek }: PlayerModalProps) {
             </div>
           </div>
 
-          {/* ── Volume ── */}
           <div className="player-modal__volume">
             <button
               className="player-modal__icon-btn"
               onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
-              aria-label={volume === 0 ? 'Bật âm' : 'Tắt tiếng'}
+              aria-label={volume === 0 ? 'Báº­t Ã¢m' : 'Táº¯t tiáº¿ng'}
             >
               {volume === 0 ? <VolumeMuteIcon /> : <VolumeIcon />}
             </button>
@@ -247,12 +247,11 @@ export function PlayerModal({ seek }: PlayerModalProps) {
                 step={0.01}
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
-                aria-label="Âm lượng"
+                aria-label="Ã‚m lÆ°á»£ng"
               />
             </div>
           </div>
 
-          {/* ── Suggested tracks ── */}
           <SuggestedTracks
             tracks={tracks ?? []}
             currentTrackId={currentTrack.id}
@@ -261,7 +260,6 @@ export function PlayerModal({ seek }: PlayerModalProps) {
           />
         </div>
 
-        {/* ── RIGHT PANEL: Lyrics ── */}
         <div className="player-modal__panel player-modal__panel--lyrics">
           <LyricsPanel track={currentTrack} currentTime={currentTime} />
         </div>
@@ -269,8 +267,6 @@ export function PlayerModal({ seek }: PlayerModalProps) {
     </div>
   );
 }
-
-// ─── Presentational sub-components ───────────────────────────────────────────
 
 interface SkipButtonProps {
   seconds: number;

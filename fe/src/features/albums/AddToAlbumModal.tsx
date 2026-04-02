@@ -3,7 +3,8 @@ import { useUIStore } from '../ui/uiStore';
 import { useAlbums, useCreateAlbum, useAddTrackToAlbum } from '../albums/hooks';
 
 export function AddToAlbumModal() {
-  const { pendingTrackForAlbum, setPendingTrackForAlbum } = useUIStore();
+  const pendingTrackForAlbum = useUIStore((state) => state.pendingTrackForAlbum);
+  const setPendingTrackForAlbum = useUIStore((state) => state.setPendingTrackForAlbum);
   const { data: albums, isLoading } = useAlbums();
   const { mutate: addTrack, isPending: isAdding } = useAddTrackToAlbum();
   const { mutate: createAlbum, isPending: isCreating } = useCreateAlbum();
