@@ -100,6 +100,10 @@ jobs:
           }
           $tag = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
-          $release = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/releases/tags/$tag"
+          $releases = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/releases?per_page=100"
+          $release = $releases | Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1
+          if (-not $release) {
+            throw "Draft release for tag $tag was not found."
+          }
           $body = @{ draft = $false } | ConvertTo-Json
           Invoke-RestMethod -Method Patch -Headers $headers -ContentType "application/json" -Body $body -Uri "https://api.github.com/repos/$repo/releases/$($release.id)" | Out-Null
