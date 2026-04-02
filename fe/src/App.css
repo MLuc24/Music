@@ -545,6 +545,14 @@
   gap: 8px;
 }
 
+.track-list--virtualized {
+  overflow-anchor: none;
+}
+
+.track-list--virtualized .track-item {
+  animation: none;
+}
+
 /* ─── Track Item ───────────────────────────────────────────────────────────── */
 
 .track-item {

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTracks, useDeleteTrack, useToggleFavorite, useUpdateTrack } from '../tracks/hooks';
 import { tracksApi } from '../tracks/api';
 import { recordPlay } from './useListeningHistory';
@@ -16,14 +16,23 @@ const SORT_LABELS: Record<SortOption, string> = {
   artist_asc: 'Nghệ sĩ A→Z',
 };
 
+const TRACK_ROW_ESTIMATE = 88;
+const TRACK_ROW_GAP = 8;
+const TRACK_OVERSCAN = 8;
+
 function sortTracks(tracks: Track[], sort: SortOption): Track[] {
   return [...tracks].sort((a, b) => {
     switch (sort) {
-      case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      case 'title_asc': return a.title.localeCompare(b.title, 'vi');
-      case 'title_desc': return b.title.localeCompare(a.title, 'vi');
-      case 'artist_asc': return (a.artist ?? '').localeCompare(b.artist ?? '', 'vi');
+      case 'newest':
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case 'oldest':
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case 'title_asc':
+        return a.title.localeCompare(b.title, 'vi');
+      case 'title_desc':
+        return b.title.localeCompare(a.title, 'vi');
+      case 'artist_asc':
+        return (a.artist ?? '').localeCompare(b.artist ?? '', 'vi');
     }
   });
 }
@@ -40,11 +49,99 @@ export function TrackListContainer() {
 
   const [sort, setSort] = useState<SortOption>('newest');
   const [showFavOnly, setShowFavOnly] = useState(false);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [rowHeight, setRowHeight] = useState(TRACK_ROW_ESTIMATE);
+  const listRef = useRef<HTMLUListElement | null>(null);
 
   const displayTracks = useMemo(() => {
-    const base = showFavOnly ? (tracks ?? []).filter((t) => t.is_favorite) : (tracks ?? []);
+    const base = showFavOnly ? (tracks ?? []).filter((track) => track.is_favorite) : (tracks ?? []);
     return sortTracks(base, sort);
   }, [tracks, sort, showFavOnly]);
+
+  const shouldVirtualize = displayTracks.length > 60 && viewportHeight > 0;
+  const visibleCount = shouldVirtualize
+    ? Math.ceil(viewportHeight / rowHeight) + TRACK_OVERSCAN * 2
+    : displayTracks.length;
+  const startIndex = shouldVirtualize
+    ? Math.max(0, Math.floor(scrollTop / rowHeight) - TRACK_OVERSCAN)
+    : 0;
+  const endIndex = shouldVirtualize
+    ? Math.min(displayTracks.length, startIndex + visibleCount)
+    : displayTracks.length;
+  const visibleTracks = shouldVirtualize ? displayTracks.slice(startIndex, endIndex) : displayTracks;
+  const paddingTop = shouldVirtualize ? startIndex * rowHeight : 0;
+  const paddingBottom = shouldVirtualize
+    ? Math.max(0, (displayTracks.length - endIndex) * rowHeight)
+    : 0;
+
+  const measureTrackRow = useCallback((node: HTMLLIElement | null) => {
+    if (!node) return;
+
+    const nextRowHeight = node.getBoundingClientRect().height + TRACK_ROW_GAP;
+    if (Math.abs(nextRowHeight - rowHeight) > 1) {
+      setRowHeight(nextRowHeight);
+    }
+  }, [rowHeight]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const updateViewportHeight = () => {
+      setViewportHeight(list.clientHeight);
+    };
+
+    updateViewportHeight();
+
+    const observer = new ResizeObserver(updateViewportHeight);
+    observer.observe(list);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    let frameId = 0;
+
+    const handleScroll = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        setScrollTop(list.scrollTop);
+      });
+    };
+
+    handleScroll();
+    list.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      list.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    list.scrollTop = 0;
+    setScrollTop(0);
+  }, [sort, showFavOnly]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
+    if (list.scrollTop > maxScrollTop) {
+      list.scrollTop = maxScrollTop;
+      setScrollTop(maxScrollTop);
+    }
+  }, [displayTracks.length, rowHeight, viewportHeight]);
 
   const handlePlay = async (track: Track) => {
     try {
@@ -66,25 +163,34 @@ export function TrackListContainer() {
     }
   };
 
-  if (isLoading) return (
-    <div className="track-list__state">
-      <div className="track-list__loading-spinner" />
-      <p>Đang tải danh sách nhạc...</p>
-    </div>
-  );
-  if (isError) return <p className="track-list__state track-list__state--error">Lỗi khi tải dữ liệu</p>;
-  if (!tracks?.length) return <EmptyState />;
+  if (isLoading) {
+    return (
+      <div className="track-list__state">
+        <div className="track-list__loading-spinner" />
+        <p>Đang tải danh sách nhạc...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return <p className="track-list__state track-list__state--error">Lỗi khi tải dữ liệu</p>;
+  }
+
+  if (!tracks?.length) {
+    return <EmptyState />;
+  }
 
   return (
     <div className="track-list-wrapper">
       <div className="track-list__header">
         <span className="track-list__count">
-          {displayTracks.length}{showFavOnly ? ' yêu thích' : ' bài hát'}
+          {displayTracks.length}
+          {showFavOnly ? ' yêu thích' : ' bài hát'}
         </span>
         <div className="track-list__controls">
           <button
             className={`track-list__fav-toggle${showFavOnly ? ' track-list__fav-toggle--active' : ''}`}
-            onClick={() => setShowFavOnly((v) => !v)}
+            onClick={() => setShowFavOnly((value) => !value)}
             title={showFavOnly ? 'Hiển thị tất cả' : 'Chỉ yêu thích'}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill={showFavOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -98,32 +204,45 @@ export function TrackListContainer() {
             onChange={(e) => setSort(e.target.value as SortOption)}
             aria-label="Sắp xếp"
           >
-            {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
-              <option key={opt} value={opt}>{SORT_LABELS[opt]}</option>
+            {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+              <option key={option} value={option}>
+                {SORT_LABELS[option]}
+              </option>
             ))}
           </select>
         </div>
       </div>
-      <ul className="track-list" role="list">
-        {displayTracks.map((track) => (
-          <TrackItem
-            key={track.id}
-            track={track}
-            isActive={currentTrackId === track.id}
-            isPlaying={currentTrackId === track.id && isPlaying}
-            onPlay={() => handlePlay(track)}
-            onDelete={() => handleDelete(track)}
-            onToggleFavorite={() => toggleFavorite(track.id)}
-            onAddToAlbum={() => setPendingTrackForAlbum(track)}
-            onRename={(title, artist) => handleRename(track, title, artist)}
-          />
-        ))}
+      <ul
+        ref={listRef}
+        className={`track-list${shouldVirtualize ? ' track-list--virtualized' : ''}`}
+        role="list"
+        style={{
+          paddingTop: shouldVirtualize ? 12 + paddingTop : 12,
+          paddingBottom: shouldVirtualize ? 12 + paddingBottom : 12,
+        }}
+      >
+        {visibleTracks.map((track, index) => {
+          const absoluteIndex = startIndex + index;
+
+          return (
+            <TrackItem
+              key={track.id}
+              track={track}
+              isActive={currentTrackId === track.id}
+              isPlaying={currentTrackId === track.id && isPlaying}
+              onPlay={() => handlePlay(track)}
+              onDelete={() => handleDelete(track)}
+              onToggleFavorite={() => toggleFavorite(track.id)}
+              onAddToAlbum={() => setPendingTrackForAlbum(track)}
+              onRename={(title, artist) => handleRename(track, title, artist)}
+              measureRef={absoluteIndex === startIndex ? measureTrackRow : undefined}
+            />
+          );
+        })}
       </ul>
     </div>
   );
 }
-
-// ─── Presentational sub-components ────────────────────────────────────────────
 
 interface TrackItemProps {
   track: Track;
@@ -134,6 +253,7 @@ interface TrackItemProps {
   onToggleFavorite: () => void;
   onAddToAlbum: () => void;
   onRename: (title: string, artist: string | null) => void;
+  measureRef?: (node: HTMLLIElement | null) => void;
 }
 
 const TrackItem = memo(function TrackItem({
@@ -145,6 +265,7 @@ const TrackItem = memo(function TrackItem({
   onToggleFavorite,
   onAddToAlbum,
   onRename,
+  measureRef,
 }: TrackItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(track.title);
@@ -164,7 +285,7 @@ const TrackItem = memo(function TrackItem({
 
   const handleEditSave = () => {
     const trimmed = editTitle.trim();
-    if (trimmed && trimmed !== track.title || editArtist.trim() !== (track.artist ?? '')) {
+    if ((trimmed && trimmed !== track.title) || editArtist.trim() !== (track.artist ?? '')) {
       onRename(trimmed || track.title, editArtist.trim() || null);
     }
     setIsEditing(false);
@@ -174,8 +295,9 @@ const TrackItem = memo(function TrackItem({
     if (e.key === 'Enter') handleEditSave();
     if (e.key === 'Escape') setIsEditing(false);
   };
+
   return (
-    <li className={`track-item${isActive ? ' track-item--active' : ''}`}>
+    <li ref={measureRef} className={`track-item${isActive ? ' track-item--active' : ''}`}>
       <div className="track-item__thumb-wrap" onClick={onPlay}>
         {track.thumbnail_url ? (
           <img
@@ -279,7 +401,7 @@ const TrackItem = memo(function TrackItem({
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
             <path d="M10 11v6M14 11v6" />
             <path d="M9 6V4h6v2" />
           </svg>
@@ -298,4 +420,3 @@ function EmptyState() {
     </div>
   );
 }
-

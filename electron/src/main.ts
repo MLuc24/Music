@@ -4,7 +4,6 @@ import getPort from 'get-port';
 import path from 'path';
 import { ChildProcess, fork } from 'child_process';
 
-// Disable GPU sandbox issues on Linux and keep autoplay usable in Electron.
 app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -16,12 +15,38 @@ function getBeBundlePath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'be-bundle.cjs');
   }
+
   return path.join(__dirname, '..', 'dist', 'be-bundle.cjs');
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForBackendHealth(port: number, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  const healthUrl = `http://127.0.0.1:${port}/health`;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(healthUrl, { cache: 'no-store' });
+      if (response.ok) return;
+    } catch {
+      // Backend is still starting up.
+    }
+
+    await delay(250);
+  }
+
+  throw new Error(`Embedded backend did not respond on ${healthUrl}`);
 }
 
 async function startBackend(port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const bundlePath = getBeBundlePath();
+    const shouldPipeLogs = !app.isPackaged;
     let settled = false;
 
     const finishResolve = () => {
@@ -47,30 +72,27 @@ async function startBackend(port: number): Promise<void> {
           : path.join(process.cwd(), 'be', 'public'),
         NODE_ENV: app.isPackaged ? 'production' : 'development',
       },
-      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      stdio: shouldPipeLogs ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'ignore', 'ignore', 'ipc'],
     });
 
-    beProcess.stdout?.on('data', (data: Buffer) => {
-      const msg = data.toString().trim();
-      console.log('[BE]', msg);
-      if (msg.includes('running on')) finishResolve();
-    });
+    if (shouldPipeLogs) {
+      beProcess.stdout?.on('data', (data: Buffer) => {
+        console.log('[BE]', data.toString().trim());
+      });
 
-    beProcess.stderr?.on('data', (data: Buffer) => {
-      console.error('[BE ERROR]', data.toString().trim());
-    });
+      beProcess.stderr?.on('data', (data: Buffer) => {
+        console.error('[BE ERROR]', data.toString().trim());
+      });
+    }
 
     beProcess.on('error', finishReject);
     beProcess.on('exit', (code, signal) => {
-      finishReject(new Error(`Embedded backend exited before startup (code: ${code ?? 'null'}, signal: ${signal ?? 'null'})`));
+      finishReject(
+        new Error(`Embedded backend exited before startup (code: ${code ?? 'null'}, signal: ${signal ?? 'null'})`),
+      );
     });
 
-    setTimeout(() => {
-      const currentProcess = beProcess;
-      if (currentProcess && currentProcess.exitCode == null && !currentProcess.killed) {
-        finishResolve();
-      }
-    }, 5000);
+    waitForBackendHealth(port).then(finishResolve).catch(finishReject);
   });
 }
 
@@ -80,10 +102,13 @@ function createWindow(): void {
     height: 800,
     minWidth: 900,
     minHeight: 600,
+    autoHideMenuBar: true,
+    backgroundColor: '#12071f',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false,
     },
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
@@ -93,7 +118,7 @@ function createWindow(): void {
   mainWindow.loadURL(`http://localhost:${serverPort}`);
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow!.show();
+    mainWindow?.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
