@@ -4,7 +4,7 @@ import getPort from 'get-port';
 import path from 'path';
 import { ChildProcess, fork } from 'child_process';
 
-// ── Disable GPU sandbox issues on Linux ───────────────────────────────────────
+// Disable GPU sandbox issues on Linux and keep autoplay usable in Electron.
 app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -12,7 +12,6 @@ let mainWindow: BrowserWindow | null = null;
 let beProcess: ChildProcess | null = null;
 let serverPort: number;
 
-// ─── Resolve BE bundle path ────────────────────────────────────────────────────
 function getBeBundlePath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'be-bundle.cjs');
@@ -20,7 +19,6 @@ function getBeBundlePath(): string {
   return path.join(__dirname, '..', 'dist', 'be-bundle.cjs');
 }
 
-// ─── Start the embedded Express server ────────────────────────────────────────
 async function startBackend(port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const bundlePath = getBeBundlePath();
@@ -41,6 +39,7 @@ async function startBackend(port: number): Promise<void> {
     beProcess = fork(bundlePath, [], {
       env: {
         ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
         PORT: String(port),
         ELECTRON_RESOURCES_PATH: process.resourcesPath ?? path.dirname(bundlePath),
         ELECTRON_STATIC_DIR: app.isPackaged
@@ -54,7 +53,6 @@ async function startBackend(port: number): Promise<void> {
     beProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString().trim();
       console.log('[BE]', msg);
-      // Resolve once server signals it's ready
       if (msg.includes('running on')) finishResolve();
     });
 
@@ -67,7 +65,6 @@ async function startBackend(port: number): Promise<void> {
       finishReject(new Error(`Embedded backend exited before startup (code: ${code ?? 'null'}, signal: ${signal ?? 'null'})`));
     });
 
-    // Fallback resolve after 5 s only if the process is still alive and stdout signal was missed.
     setTimeout(() => {
       const currentProcess = beProcess;
       if (currentProcess && currentProcess.exitCode == null && !currentProcess.killed) {
@@ -77,7 +74,6 @@ async function startBackend(port: number): Promise<void> {
   });
 }
 
-// ─── Create the browser window ────────────────────────────────────────────────
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -100,7 +96,6 @@ function createWindow(): void {
     mainWindow!.show();
   });
 
-  // Open external links in system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -111,7 +106,6 @@ function createWindow(): void {
   });
 }
 
-// ─── Auto updater ─────────────────────────────────────────────────────────────
 function setupAutoUpdater(): void {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -137,15 +131,12 @@ function setupAutoUpdater(): void {
     console.error('[Updater] Error:', err.message);
   });
 
-  // Check for updates 3 seconds after app is ready (non-blocking)
   setTimeout(() => {
     if (app.isPackaged) autoUpdater.checkForUpdatesAndNotify();
   }, 3000);
 }
 
-// ─── App lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  // Handle preload IPC
   ipcMain.handle('get-app-version', () => app.getVersion());
 
   try {
