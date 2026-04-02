@@ -10,6 +10,11 @@ permissions:
 
 jobs:
   build:
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CSC_IDENTITY_AUTO_DISCOVERY: false
     strategy:
       matrix:
         include:
@@ -89,8 +94,4 @@ jobs:
       - name: Build & publish Electron app (${{ matrix.platform }})
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm --workspace electron run build:${{ matrix.platform }}:publish
