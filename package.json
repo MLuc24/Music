@@ -1,6 +1,6 @@
 {
   "name": "nhac",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "private": true,
   "workspaces": [
     "fe",
@@ -15,12 +15,10 @@
     "dev:fe": "cd fe && npm run dev",
     "build:be": "cd be && npm run build",
     "build:fe": "cd fe && npm run build",
-
     "build:fe:electron": "cross-env VITE_API_URL=/api npm run build:fe",
     "copy:fe": "node scripts/copy-fe-dist.mjs",
     "bundle:be": "node be/esbuild.electron.mjs",
     "build:electron:ts": "cd electron && npm run build:ts",
-
     "release:win": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:win",
     "release:mac": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:mac",
     "release:linux": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:linux",

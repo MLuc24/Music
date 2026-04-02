@@ -80,5 +80,4 @@ publish:
   provider: github
   owner: MLuc24
   repo: Music
-  releaseType: draft
 
