@@ -1,6 +1,6 @@
 {
   "name": "nhac-desktop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Nhạc - Desktop Music Player",
   "author": "Luc Pham",
   "main": "dist/main.js",
