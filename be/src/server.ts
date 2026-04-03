@@ -6,6 +6,7 @@ import downloadRoutes from './routes/download.routes.js';
 import playerRoutes from './routes/player.routes.js';
 import lyricsRoutes from './routes/lyrics.routes.js';
 import albumsRoutes from './routes/albums.routes.js';
+import libraryRoutes from './routes/library.routes.js';
 
 function resolveStaticDir(): string {
   if (process.env.ELECTRON_STATIC_DIR) {
@@ -32,6 +33,7 @@ export function createApp(): Express {
   app.use('/api/player', playerRoutes);
   app.use('/api/lyrics', lyricsRoutes);
   app.use('/api/albums', albumsRoutes);
+  app.use('/api/library', libraryRoutes);
 
   // Health check
   app.get('/health', (_req, res) => {

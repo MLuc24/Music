@@ -7,6 +7,7 @@ import {
   removeAlbum,
   appendTrackToAlbum,
   detachTrackFromAlbum,
+  reorderTracksInAlbum,
 } from '../modules/albums/albums.service.js';
 
 function param(p: string | string[]): string {
@@ -77,5 +78,18 @@ export async function deleteAlbumTrack(req: Request, res: Response) {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to remove track' });
+  }
+}
+
+export async function patchAlbumTrackOrder(req: Request, res: Response) {
+  try {
+    const trackIds = Array.isArray(req.body?.trackIds) ? req.body.trackIds : null;
+    if (!trackIds) return res.status(400).json({ error: 'trackIds is required' });
+
+    const tracks = await reorderTracksInAlbum(param(req.params.id), { trackIds });
+    res.json({ tracks });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to reorder tracks';
+    res.status(message.includes('required') ? 400 : 500).json({ error: message });
   }
 }

@@ -1,4 +1,5 @@
 import { DownloaderContainer } from './features/downloader/DownloaderContainer';
+import { DownloadCenterView } from './features/downloader/DownloadCenterView';
 import { TrackListContainer } from './features/tracks/TrackListContainer';
 import { AlbumsContainer } from './features/albums/AlbumsContainer';
 import { AlbumDetailContainer } from './features/albums/AlbumDetailContainer';
@@ -9,78 +10,142 @@ import { useAudioSync } from './features/player/useAudioSync';
 import { usePlayerKeyboard } from './features/player/usePlayerKeyboard';
 import { usePlayerStore } from './features/player/playerStore';
 import { useUIStore } from './features/ui/uiStore';
+import { ToastViewport } from './features/ui/ToastViewport';
+import { CommandPalette } from './features/ui/CommandPalette';
+import { HomeDashboard } from './features/home/HomeDashboard';
 import './App.css';
+import './styles/shell.css';
+
+const NAV_ITEMS = [
+  { id: 'home', label: 'Home' },
+  { id: 'library', label: 'Library' },
+  { id: 'favorites', label: 'Favorites' },
+  { id: 'albums', label: 'Albums' },
+  { id: 'downloads', label: 'Downloads' },
+] as const;
 
 function App() {
   const { seek } = useAudioSync();
   usePlayerKeyboard(seek);
+
   const isModalOpen = usePlayerStore((state) => state.isModalOpen);
-  const activeTab = useUIStore((state) => state.activeTab);
-  const setActiveTab = useUIStore((state) => state.setActiveTab);
+  const queue = usePlayerStore((state) => state.queue);
+  const activeView = useUIStore((state) => state.activeView);
+  const setActiveView = useUIStore((state) => state.setActiveView);
   const selectedAlbumId = useUIStore((state) => state.selectedAlbumId);
   const pendingTrackForAlbum = useUIStore((state) => state.pendingTrackForAlbum);
 
   return (
-    <div className="app">
-      <div className="app__bg" aria-hidden="true" />
-      
-      <header className="app__header">
-        <div className="app__header-brand">
-          <div className="app__logo-mark">🎵</div>
-          <h1 className="app__logo">Nhạc</h1>
+    <div className="app-shell">
+      <div className="app-shell__bg" aria-hidden="true" />
+
+      <aside className="app-rail">
+        <div className="app-rail__brand">
+          <div className="app-rail__brand-mark">N</div>
+          <div>
+            <p className="app-rail__brand-title">Nhạc</p>
+            <span className="app-rail__brand-subtitle">Local-first player</span>
+          </div>
         </div>
-        <nav className="app__tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'library'}
-            className={`app__tab${activeTab === 'library' ? ' app__tab--active' : ''}`}
-            onClick={() => setActiveTab('library')}
-          >
-            Thư viện
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'albums'}
-            className={`app__tab${activeTab === 'albums' ? ' app__tab--active' : ''}`}
-            onClick={() => setActiveTab('albums')}
-          >
-            Albums
-          </button>
+
+        <nav className="app-rail__nav" aria-label="Điều hướng">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              className={`app-rail__link${activeView === item.id ? ' app-rail__link--active' : ''}`}
+              onClick={() => setActiveView(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
-        <div className="app__header-meta">
-          <span className="app__badge">Music Player</span>
+
+        <div className="app-rail__footer">
+          <button className="app-rail__shortcut" onClick={() => useUIStore.getState().setIsCommandPaletteOpen(true)}>
+            Command Palette
+            <span>Ctrl/Cmd + K</span>
+          </button>
+          <div className="app-rail__queue-indicator">
+            <span>Up next</span>
+            <strong>{queue.length}</strong>
+          </div>
         </div>
-      </header>
+      </aside>
 
-      <main className="app__main">
-        {activeTab === 'library' && (
-          <>
-            <section className="app__downloader" aria-label="Tải nhạc từ YouTube">
-              <DownloaderContainer />
+      <div className="app-shell__content">
+        <header className="app-header">
+          <div>
+            <p className="app-header__eyebrow">Utility-first music app</p>
+            <h1 className="app-header__title">
+              {activeView === 'home' && 'Tổng quan'}
+              {activeView === 'library' && 'Thư viện'}
+              {activeView === 'favorites' && 'Yêu thích'}
+              {activeView === 'albums' && 'Albums'}
+              {activeView === 'downloads' && 'Downloads'}
+            </h1>
+          </div>
+
+          <button className="app-header__search" onClick={() => useUIStore.getState().setIsCommandPaletteOpen(true)}>
+            Tìm nhanh bài hát, album hoặc thao tác...
+          </button>
+        </header>
+
+        <main className="app-main">
+          {activeView === 'home' ? (
+            <>
+              <section className="app-section app-section--compact">
+                <DownloaderContainer />
+              </section>
+              <section className="app-section app-section--fill">
+                <HomeDashboard />
+              </section>
+            </>
+          ) : null}
+
+          {activeView === 'library' ? (
+            <>
+              <section className="app-section app-section--compact">
+                <DownloaderContainer />
+              </section>
+              <section className="app-section app-section--fill">
+                <TrackListContainer title="Toàn bộ thư viện" />
+              </section>
+            </>
+          ) : null}
+
+          {activeView === 'favorites' ? (
+            <section className="app-section app-section--fill">
+              <TrackListContainer favoriteOnly title="Bài hát yêu thích" />
             </section>
-            <section className="app__library" aria-label="Thư viện nhạc">
-              <TrackListContainer />
+          ) : null}
+
+          {activeView === 'albums' ? (
+            <section className="app-section app-section--fill">
+              {selectedAlbumId ? <AlbumDetailContainer albumId={selectedAlbumId} /> : <AlbumsContainer />}
             </section>
-          </>
-        )}
+          ) : null}
 
-        {activeTab === 'albums' && (
-          <section className="app__library" aria-label="Albums">
-            {selectedAlbumId ? (
-              <AlbumDetailContainer albumId={selectedAlbumId} />
-            ) : (
-              <AlbumsContainer />
-            )}
-          </section>
-        )}
-      </main>
+          {activeView === 'downloads' ? (
+            <>
+              <section className="app-section app-section--compact">
+                <DownloaderContainer />
+              </section>
+              <section className="app-section app-section--fill">
+                <DownloadCenterView />
+              </section>
+            </>
+          ) : null}
+        </main>
 
-      <footer className="app__player">
-        <PlayerBar seek={seek} />
-      </footer>
+        <footer className="app-player">
+          <PlayerBar seek={seek} />
+        </footer>
+      </div>
 
-      {isModalOpen && <PlayerModal seek={seek} />}
-      {pendingTrackForAlbum && <AddToAlbumModal />}
+      {isModalOpen ? <PlayerModal seek={seek} /> : null}
+      {pendingTrackForAlbum ? <AddToAlbumModal /> : null}
+      <CommandPalette />
+      <ToastViewport />
     </div>
   );
 }

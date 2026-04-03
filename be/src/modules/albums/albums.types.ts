@@ -21,3 +21,7 @@ export interface AlbumTrack {
 
 export type AlbumInsert = Pick<Album, 'name' | 'description' | 'cover_url'>;
 export type AlbumUpdate = Partial<AlbumInsert>;
+
+export interface AlbumTrackReorderPayload {
+  trackIds: string[];
+}

@@ -71,3 +71,15 @@ export function useRemoveTrackFromAlbum() {
     },
   });
 }
+
+export function useReorderAlbumTracks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ albumId, trackIds }: { albumId: string; trackIds: string[] }) =>
+      albumsApi.reorderTracks(albumId, trackIds),
+    onSuccess: (detail, { albumId }) => {
+      queryClient.invalidateQueries({ queryKey: ALBUMS_QUERY_KEY });
+      queryClient.setQueryData(albumDetailKey(albumId), detail);
+    },
+  });
+}

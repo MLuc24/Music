@@ -1,63 +1,77 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTracks, useDeleteTrack, useToggleFavorite, useUpdateTrack } from '../tracks/hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTracks, useDeleteTrack, useToggleFavorite, useUpdateTrack, TRACKS_QUERY_KEY, LIBRARY_SUMMARY_QUERY_KEY } from '../tracks/hooks';
 import { tracksApi } from '../tracks/api';
-import { recordPlay } from './useListeningHistory';
+import { albumsApi } from '../albums/api';
+import { useAlbums } from '../albums/hooks';
 import { usePlayerStore } from '../player/playerStore';
 import { useUIStore } from '../ui/uiStore';
-import type { Track } from '../../types/database';
+import { useToastStore } from '../ui/toastStore';
+import { logAppError } from '../../lib/logger';
+import type { Track, TrackSortOption } from '../../types/database';
 
-type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'artist_asc';
-
-const SORT_LABELS: Record<SortOption, string> = {
+const SORT_LABELS: Record<TrackSortOption, string> = {
   newest: 'Mới nhất',
   oldest: 'Cũ nhất',
-  title_asc: 'Tên A→Z',
-  title_desc: 'Tên Z→A',
-  artist_asc: 'Nghệ sĩ A→Z',
+  title_asc: 'Tên A-Z',
+  title_desc: 'Tên Z-A',
+  artist_asc: 'Nghệ sĩ A-Z',
+  artist_desc: 'Nghệ sĩ Z-A',
 };
 
 const TRACK_ROW_ESTIMATE = 88;
 const TRACK_ROW_GAP = 8;
 const TRACK_OVERSCAN = 8;
+const DELETE_DELAY_MS = 4000;
 
-function sortTracks(tracks: Track[], sort: SortOption): Track[] {
-  return [...tracks].sort((a, b) => {
-    switch (sort) {
-      case 'newest':
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      case 'oldest':
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      case 'title_asc':
-        return a.title.localeCompare(b.title, 'vi');
-      case 'title_desc':
-        return b.title.localeCompare(a.title, 'vi');
-      case 'artist_asc':
-        return (a.artist ?? '').localeCompare(b.artist ?? '', 'vi');
-    }
-  });
+interface TrackListContainerProps {
+  favoriteOnly?: boolean;
+  title?: string;
 }
 
-export function TrackListContainer() {
-  const { data: tracks, isLoading, isError } = useTracks();
-  const { mutate: deleteTrack } = useDeleteTrack();
+export function TrackListContainer({ favoriteOnly = false, title }: TrackListContainerProps) {
+  const queryClient = useQueryClient();
+  const deleteTrackMutation = useDeleteTrack();
   const { mutate: toggleFavorite } = useToggleFavorite();
   const { mutate: updateTrack } = useUpdateTrack();
-  const setCurrentTrack = usePlayerStore((state) => state.setCurrentTrack);
+  const { data: albums } = useAlbums();
+  const playTrack = usePlayerStore((state) => state.playTrack);
+  const addToQueue = usePlayerStore((state) => state.addToQueue);
   const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
   const setPendingTrackForAlbum = useUIStore((state) => state.setPendingTrackForAlbum);
+  const showToast = useToastStore((state) => state.showToast);
 
-  const [sort, setSort] = useState<SortOption>('newest');
-  const [showFavOnly, setShowFavOnly] = useState(false);
+  const [sort, setSort] = useState<TrackSortOption>('newest');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
+  const [bulkAlbumOpen, setBulkAlbumOpen] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [rowHeight, setRowHeight] = useState(TRACK_ROW_ESTIMATE);
   const listRef = useRef<HTMLUListElement | null>(null);
+  const deleteTimersRef = useRef<Map<string, number>>(new Map());
 
-  const displayTracks = useMemo(() => {
-    const base = showFavOnly ? (tracks ?? []).filter((track) => track.is_favorite) : (tracks ?? []);
-    return sortTracks(base, sort);
-  }, [tracks, sort, showFavOnly]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  const { data: tracks, isLoading, isError } = useTracks({
+    q: debouncedSearch || undefined,
+    favorite: favoriteOnly ? true : undefined,
+    sort,
+  });
+
+  const displayTracks = useMemo(
+    () => (tracks ?? []).filter((track) => !pendingDeleteIds.includes(track.id)),
+    [tracks, pendingDeleteIds],
+  );
 
   const shouldVirtualize = displayTracks.length > 60 && viewportHeight > 0;
   const visibleCount = shouldVirtualize
@@ -74,6 +88,11 @@ export function TrackListContainer() {
   const paddingBottom = shouldVirtualize
     ? Math.max(0, (displayTracks.length - endIndex) * rowHeight)
     : 0;
+
+  const selectedTracks = useMemo(
+    () => displayTracks.filter((track) => selectedIds.includes(track.id)),
+    [displayTracks, selectedIds],
+  );
 
   const measureTrackRow = useCallback((node: HTMLLIElement | null) => {
     if (!node) return;
@@ -127,29 +146,33 @@ export function TrackListContainer() {
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
-
     list.scrollTop = 0;
-    setScrollTop(0);
-  }, [sort, showFavOnly]);
+  }, [sort, debouncedSearch, favoriteOnly]);
 
   useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
+    setSelectedIds((current) => current.filter((id) => displayTracks.some((track) => track.id === id)));
+  }, [displayTracks]);
 
-    const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
-    if (list.scrollTop > maxScrollTop) {
-      list.scrollTop = maxScrollTop;
-      setScrollTop(maxScrollTop);
-    }
-  }, [displayTracks.length, rowHeight, viewportHeight]);
+  useEffect(() => () => {
+    deleteTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    deleteTimersRef.current.clear();
+  }, []);
+
+  const invalidateTrackData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: TRACKS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: LIBRARY_SUMMARY_QUERY_KEY });
+  }, [queryClient]);
 
   const handlePlay = async (track: Track) => {
     try {
-      const streamUrl = await tracksApi.getStreamUrl(track.storage_path);
-      setCurrentTrack(track, streamUrl);
-      recordPlay(track.id);
+      await playTrack(track);
     } catch (error) {
-      console.error('Failed to play track:', track.id, track.storage_path, error);
+      logAppError('library', 'Failed to play track', error, { trackId: track.id });
+      showToast({
+        title: 'Không thể phát bài hát',
+        description: track.title,
+        tone: 'error',
+      });
     }
   };
 
@@ -157,10 +180,68 @@ export function TrackListContainer() {
     updateTrack({ id: track.id, title: newTitle, artist: newArtist });
   };
 
-  const handleDelete = (track: Track) => {
-    if (confirm(`Xóa "${track.title}"?`)) {
-      deleteTrack({ id: track.id, storagePath: track.storage_path });
+  const commitDelete = useCallback(async (trackIds: string[]) => {
+    try {
+      await Promise.all(trackIds.map((trackId) => deleteTrackMutation.mutateAsync(trackId)));
+      invalidateTrackData();
+    } catch (error) {
+      logAppError('library', 'Failed to delete track', error, { trackIds });
+      showToast({
+        title: 'Xóa bài hát thất bại',
+        description: 'Một số bài hát chưa được xóa.',
+        tone: 'error',
+      });
+    } finally {
+      setPendingDeleteIds((current) => current.filter((id) => !trackIds.includes(id)));
+      setSelectedIds((current) => current.filter((id) => !trackIds.includes(id)));
+      trackIds.forEach((trackId) => deleteTimersRef.current.delete(trackId));
     }
+  }, [deleteTrackMutation, invalidateTrackData, showToast]);
+
+  const scheduleDelete = (tracksToDelete: Track[]) => {
+    const ids = tracksToDelete.map((track) => track.id);
+    setPendingDeleteIds((current) => [...new Set([...current, ...ids])]);
+
+    const timerId = window.setTimeout(() => {
+      void commitDelete(ids);
+    }, DELETE_DELAY_MS);
+
+    ids.forEach((id) => deleteTimersRef.current.set(id, timerId));
+
+    showToast({
+      title: ids.length > 1 ? `Đã lên lịch xóa ${ids.length} bài hát` : 'Đã lên lịch xóa bài hát',
+      description: 'Bạn có 4 giây để hoàn tác.',
+      actionLabel: 'Hoàn tác',
+      onAction: () => {
+        window.clearTimeout(timerId);
+        ids.forEach((id) => deleteTimersRef.current.delete(id));
+        setPendingDeleteIds((current) => current.filter((id) => !ids.includes(id)));
+      },
+    });
+  };
+
+  const handleBulkFavorite = async (favorite: boolean) => {
+    const targets = selectedTracks.filter((track) => track.is_favorite !== favorite);
+    await Promise.all(targets.map((track) => tracksApi.toggleFavorite(track.id)));
+    invalidateTrackData();
+    setSelectedIds([]);
+    showToast({
+      title: favorite ? 'Đã thêm vào yêu thích' : 'Đã bỏ khỏi yêu thích',
+      description: `${targets.length} bài hát đã được cập nhật.`,
+      tone: 'success',
+    });
+  };
+
+  const handleBulkAddToAlbum = async (albumId: string) => {
+    await Promise.all(selectedTracks.map((track) => albumsApi.addTrack(albumId, track.id)));
+    setBulkAlbumOpen(false);
+    setSelectedIds([]);
+    queryClient.invalidateQueries({ queryKey: ['albums'] });
+    showToast({
+      title: 'Đã thêm vào album',
+      description: `${selectedTracks.length} bài hát đã được thêm.`,
+      tone: 'success',
+    });
   };
 
   if (isLoading) {
@@ -173,73 +254,129 @@ export function TrackListContainer() {
   }
 
   if (isError) {
-    return <p className="track-list__state track-list__state--error">Lỗi khi tải dữ liệu</p>;
-  }
-
-  if (!tracks?.length) {
-    return <EmptyState />;
+    return <p className="track-list__state track-list__state--error">Lỗi khi tải dữ liệu.</p>;
   }
 
   return (
     <div className="track-list-wrapper">
-      <div className="track-list__header">
-        <span className="track-list__count">
-          {displayTracks.length}
-          {showFavOnly ? ' yêu thích' : ' bài hát'}
-        </span>
-        <div className="track-list__controls">
-          <button
-            className={`track-list__fav-toggle${showFavOnly ? ' track-list__fav-toggle--active' : ''}`}
-            onClick={() => setShowFavOnly((value) => !value)}
-            title={showFavOnly ? 'Hiển thị tất cả' : 'Chỉ yêu thích'}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill={showFavOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            Yêu thích
-          </button>
+      <div className="track-list__header track-list__header--dense">
+        <div className="track-list__headline">
+          <span className="track-list__count">{title ?? (favoriteOnly ? 'Yêu thích' : 'Thư viện')}</span>
+          <span className="track-list__meta">{displayTracks.length} bài hát</span>
+        </div>
+
+        <div className="track-list__controls track-list__controls--wide">
+          <input
+            className="track-list__search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm theo tên bài, nghệ sĩ hoặc URL..."
+            aria-label="Tìm kiếm bài hát"
+          />
+
           <select
             className="track-list__sort-select"
             value={sort}
-            onChange={(e) => setSort(e.target.value as SortOption)}
-            aria-label="Sắp xếp"
+            onChange={(event) => setSort(event.target.value as TrackSortOption)}
+            aria-label="Sắp xếp bài hát"
           >
-            {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+            {(Object.keys(SORT_LABELS) as TrackSortOption[]).map((option) => (
               <option key={option} value={option}>
                 {SORT_LABELS[option]}
               </option>
             ))}
           </select>
+
+          <button
+            className="track-list__secondary-btn"
+            onClick={() => setSelectedIds(displayTracks.map((track) => track.id))}
+            disabled={displayTracks.length === 0}
+          >
+            Chọn tất cả
+          </button>
         </div>
       </div>
-      <ul
-        ref={listRef}
-        className={`track-list${shouldVirtualize ? ' track-list--virtualized' : ''}`}
-        role="list"
-        style={{
-          paddingTop: shouldVirtualize ? 12 + paddingTop : 12,
-          paddingBottom: shouldVirtualize ? 12 + paddingBottom : 12,
-        }}
-      >
-        {visibleTracks.map((track, index) => {
-          const absoluteIndex = startIndex + index;
 
-          return (
-            <TrackItem
-              key={track.id}
-              track={track}
-              isActive={currentTrackId === track.id}
-              isPlaying={currentTrackId === track.id && isPlaying}
-              onPlay={() => handlePlay(track)}
-              onDelete={() => handleDelete(track)}
-              onToggleFavorite={() => toggleFavorite(track.id)}
-              onAddToAlbum={() => setPendingTrackForAlbum(track)}
-              onRename={(title, artist) => handleRename(track, title, artist)}
-              measureRef={absoluteIndex === startIndex ? measureTrackRow : undefined}
-            />
-          );
-        })}
-      </ul>
+      {selectedIds.length > 0 ? (
+        <div className="track-list__bulk-bar">
+          <span>{selectedIds.length} mục đã chọn</span>
+          <div className="track-list__bulk-actions">
+            <button onClick={() => void handleBulkFavorite(true)}>Yêu thích</button>
+            <button onClick={() => void handleBulkFavorite(false)}>Bỏ thích</button>
+            <button onClick={() => setBulkAlbumOpen(true)}>Thêm vào album</button>
+            <button className="track-list__danger-btn" onClick={() => scheduleDelete(selectedTracks)}>Xóa</button>
+            <button onClick={() => setSelectedIds([])}>Bỏ chọn</button>
+          </div>
+        </div>
+      ) : null}
+
+      {!displayTracks.length ? (
+        <EmptyState search={debouncedSearch} favoriteOnly={favoriteOnly} />
+      ) : (
+        <ul
+          ref={listRef}
+          className={`track-list${shouldVirtualize ? ' track-list--virtualized' : ''}`}
+          role="list"
+          style={{
+            paddingTop: shouldVirtualize ? 12 + paddingTop : 12,
+            paddingBottom: shouldVirtualize ? 12 + paddingBottom : 12,
+          }}
+        >
+          {visibleTracks.map((track, index) => {
+            const absoluteIndex = startIndex + index;
+
+            return (
+              <TrackItem
+                key={track.id}
+                track={track}
+                isActive={currentTrackId === track.id}
+                isPlaying={currentTrackId === track.id && isPlaying}
+                isSelected={selectedIds.includes(track.id)}
+                onSelect={(checked) =>
+                  setSelectedIds((current) =>
+                    checked
+                      ? [...new Set([...current, track.id])]
+                      : current.filter((id) => id !== track.id),
+                  )
+                }
+                onPlay={() => void handlePlay(track)}
+                onDelete={() => scheduleDelete([track])}
+                onToggleFavorite={() => toggleFavorite(track.id)}
+                onPlayNext={() => addToQueue([track], 'next')}
+                onAddToAlbum={() => setPendingTrackForAlbum(track)}
+                onRename={(nextTitle, nextArtist) => handleRename(track, nextTitle, nextArtist)}
+                measureRef={absoluteIndex === startIndex ? measureTrackRow : undefined}
+              />
+            );
+          })}
+        </ul>
+      )}
+
+      {bulkAlbumOpen ? (
+        <div className="modal-overlay" onClick={() => setBulkAlbumOpen(false)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal__header">
+              <h3 className="modal__title">Thêm nhiều bài vào album</h3>
+              <button className="modal__close" onClick={() => setBulkAlbumOpen(false)} aria-label="Đóng">
+                ×
+              </button>
+            </div>
+
+            <ul className="modal__album-list">
+              {(albums ?? []).map((album) => (
+                <li key={album.id} className="modal__album-item">
+                  <span className="modal__album-name">
+                    <span>💿</span> {album.name}
+                  </span>
+                  <button className="modal__add-btn" onClick={() => void handleBulkAddToAlbum(album.id)}>
+                    Thêm {selectedIds.length} bài
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -248,9 +385,12 @@ interface TrackItemProps {
   track: Track;
   isActive: boolean;
   isPlaying: boolean;
+  isSelected: boolean;
+  onSelect: (checked: boolean) => void;
   onPlay: () => void;
   onDelete: () => void;
   onToggleFavorite: () => void;
+  onPlayNext: () => void;
   onAddToAlbum: () => void;
   onRename: (title: string, artist: string | null) => void;
   measureRef?: (node: HTMLLIElement | null) => void;
@@ -260,9 +400,12 @@ const TrackItem = memo(function TrackItem({
   track,
   isActive,
   isPlaying,
+  isSelected,
+  onSelect,
   onPlay,
   onDelete,
   onToggleFavorite,
+  onPlayNext,
   onAddToAlbum,
   onRename,
   measureRef,
@@ -273,39 +416,36 @@ const TrackItem = memo(function TrackItem({
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isEditing) titleInputRef.current?.focus();
+    if (isEditing) {
+      titleInputRef.current?.focus();
+    }
   }, [isEditing]);
 
-  const handleEditStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditTitle(track.title);
-    setEditArtist(track.artist ?? '');
-    setIsEditing(true);
-  };
-
   const handleEditSave = () => {
-    const trimmed = editTitle.trim();
-    if ((trimmed && trimmed !== track.title) || editArtist.trim() !== (track.artist ?? '')) {
-      onRename(trimmed || track.title, editArtist.trim() || null);
-    }
-    setIsEditing(false);
-  };
+    const trimmedTitle = editTitle.trim();
+    const trimmedArtist = editArtist.trim();
 
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleEditSave();
-    if (e.key === 'Escape') setIsEditing(false);
+    if (trimmedTitle && (trimmedTitle !== track.title || trimmedArtist !== (track.artist ?? ''))) {
+      onRename(trimmedTitle, trimmedArtist || null);
+    }
+
+    setIsEditing(false);
   };
 
   return (
     <li ref={measureRef} className={`track-item${isActive ? ' track-item--active' : ''}`}>
+      <label className="track-item__select">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(event) => onSelect(event.target.checked)}
+          aria-label={`Chọn ${track.title}`}
+        />
+      </label>
+
       <div className="track-item__thumb-wrap" onClick={onPlay}>
         {track.thumbnail_url ? (
-          <img
-            className="track-item__thumb"
-            src={track.thumbnail_url}
-            alt={track.title}
-            loading="lazy"
-          />
+          <img className="track-item__thumb" src={track.thumbnail_url} alt={track.title} loading="lazy" />
         ) : (
           <div className="track-item__thumb track-item__thumb--placeholder">
             <span>🎵</span>
@@ -314,7 +454,9 @@ const TrackItem = memo(function TrackItem({
         <div className="track-item__thumb-overlay">
           {isPlaying ? (
             <span className="track-item__playing-bars">
-              <span /><span /><span />
+              <span />
+              <span />
+              <span />
             </span>
           ) : (
             <span className="track-item__play-icon">▶</span>
@@ -329,22 +471,26 @@ const TrackItem = memo(function TrackItem({
               ref={titleInputRef}
               className="track-item__edit-input"
               value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onKeyDown={handleEditKeyDown}
+              onChange={(event) => setEditTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleEditSave();
+                if (event.key === 'Escape') setIsEditing(false);
+              }}
               onBlur={handleEditSave}
               placeholder="Tên bài hát"
               maxLength={200}
-              onClick={(e) => e.stopPropagation()}
             />
             <input
               className="track-item__edit-input track-item__edit-input--artist"
               value={editArtist}
-              onChange={(e) => setEditArtist(e.target.value)}
-              onKeyDown={handleEditKeyDown}
+              onChange={(event) => setEditArtist(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleEditSave();
+                if (event.key === 'Escape') setIsEditing(false);
+              }}
               onBlur={handleEditSave}
-              placeholder="Nghệ sĩ (tùy chọn)"
+              placeholder="Nghệ sĩ"
               maxLength={100}
-              onClick={(e) => e.stopPropagation()}
             />
           </div>
         ) : (
@@ -353,17 +499,13 @@ const TrackItem = memo(function TrackItem({
               <p className="track-item__title">{track.title}</p>
               <button
                 className="track-item__edit-btn"
-                onClick={handleEditStart}
+                onClick={() => setIsEditing(true)}
                 aria-label="Đổi tên bài hát"
-                title="Đổi tên (nhấn đúp tên)"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
+                ✎
               </button>
             </div>
-            {track.artist && <p className="track-item__artist">{track.artist}</p>}
+            {track.artist ? <p className="track-item__artist">{track.artist}</p> : null}
           </>
         )}
       </div>
@@ -373,50 +515,41 @@ const TrackItem = memo(function TrackItem({
           className={`track-item__fav-btn${track.is_favorite ? ' track-item__fav-btn--active' : ''}`}
           onClick={onToggleFavorite}
           aria-label={track.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-          title={track.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill={track.is_favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
+          ♥
         </button>
-        <button
-          className="track-item__album-btn"
-          onClick={onAddToAlbum}
-          aria-label="Thêm vào album"
-          title="Thêm vào album"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 18V5l12-2v13" />
-            <circle cx="6" cy="18" r="3" />
-            <circle cx="18" cy="16" r="3" />
-            <line x1="18" y1="13" x2="18" y2="7" />
-            <line x1="15" y1="7" x2="21" y2="7" />
-          </svg>
+        <button className="track-item__album-btn" onClick={onPlayNext} aria-label="Phát tiếp theo">
+          ↥
         </button>
-        <button
-          className="track-item__delete"
-          onClick={onDelete}
-          aria-label={`Xóa ${track.title}`}
-          title="Xóa bài hát"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4h6v2" />
-          </svg>
+        <button className="track-item__album-btn" onClick={onAddToAlbum} aria-label="Thêm vào album">
+          ＋
+        </button>
+        <button className="track-item__delete" onClick={onDelete} aria-label={`Xóa ${track.title}`}>
+          ✕
         </button>
       </div>
     </li>
   );
 });
 
-function EmptyState() {
+function EmptyState({ search, favoriteOnly }: { search: string; favoriteOnly: boolean }) {
+  if (search) {
+    return (
+      <div className="track-list__empty">
+        <div className="track-list__empty-icon">⌕</div>
+        <p className="track-list__empty-title">Không tìm thấy kết quả</p>
+        <p className="track-list__empty-sub">Thử từ khóa khác hoặc giảm bộ lọc.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="track-list__empty">
-      <div className="track-list__empty-icon">🎵</div>
-      <p className="track-list__empty-title">Thư viện trống</p>
-      <p className="track-list__empty-sub">Dán link YouTube ở trên để tải nhạc về</p>
+      <div className="track-list__empty-icon">{favoriteOnly ? '♥' : '🎵'}</div>
+      <p className="track-list__empty-title">{favoriteOnly ? 'Chưa có bài yêu thích' : 'Thư viện trống'}</p>
+      <p className="track-list__empty-sub">
+        {favoriteOnly ? 'Hãy đánh dấu vài bài hát để quay lại nhanh hơn.' : 'Dán link YouTube ở trên để tải nhạc về.'}
+      </p>
     </div>
   );
 }

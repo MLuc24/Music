@@ -55,6 +55,7 @@ export interface DownloadResult {
   filePath: string;
   title: string;
   thumbnailUrl: string | null;
+  artist: string | null;
 }
 
 export interface VideoPreview {
@@ -97,6 +98,27 @@ export interface DownloadProgress {
   error?: string;
 }
 
+export function parseTrackMetadata(rawTitle: string): { title: string; artist: string | null } {
+  const normalized = rawTitle.replace(/\s+/g, ' ').trim();
+  const separators = [' - ', ' – ', ' | '];
+
+  for (const separator of separators) {
+    if (!normalized.includes(separator)) continue;
+
+    const [left, ...rest] = normalized.split(separator);
+    const right = rest.join(separator).trim();
+    const artist = left.trim();
+    if (artist && right) {
+      return {
+        title: right.replace(/\((official|lyrics?|audio|video).*?\)/gi, '').trim() || right,
+        artist,
+      };
+    }
+  }
+
+  return { title: normalized, artist: null };
+}
+
 export function isYouTubeUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -128,10 +150,10 @@ export async function downloadAudio(
 
     console.log('📹 Getting video info...');
     const info = await ytDlp.getVideoInfo(url);
-    const title = info.title || 'Unknown Title';
+    const metadata = parseTrackMetadata(info.title || 'Unknown Title');
     const videoId = extractYouTubeVideoId(url);
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : (info.thumbnail || null);
-    console.log('Video title:', title);
+    console.log('Video title:', metadata.title);
     console.log('Video duration:', info.duration, 'seconds');
 
     onProgress({ trackId, percent: 20, status: 'downloading' });
@@ -186,7 +208,13 @@ export async function downloadAudio(
     });
 
     onProgress({ trackId, percent: 100, status: 'done' });
-    return { trackId, filePath: outputPath, title, thumbnailUrl };
+    return {
+      trackId,
+      filePath: outputPath,
+      title: metadata.title,
+      thumbnailUrl,
+      artist: metadata.artist,
+    };
 
   } catch (error) {
     console.error('❌ Download failed with error:', error);

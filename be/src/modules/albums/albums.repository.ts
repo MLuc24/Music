@@ -1,5 +1,12 @@
 import { supabase } from '../../config/supabase.js';
-import type { Album, AlbumWithCount, AlbumInsert, AlbumUpdate, AlbumTrack } from './albums.types.js';
+import type {
+  Album,
+  AlbumTrack,
+  AlbumTrackReorderPayload,
+  AlbumWithCount,
+  AlbumInsert,
+  AlbumUpdate,
+} from './albums.types.js';
 import type { Track } from '../tracks/tracks.types.js';
 
 export async function getAllAlbums(): Promise<AlbumWithCount[]> {
@@ -101,4 +108,26 @@ export async function removeTrackFromAlbum(albumId: string, trackId: string): Pr
     .eq('track_id', trackId);
 
   if (error) throw new Error(`Failed to remove track from album: ${error.message}`);
+}
+
+export async function reorderAlbumTracks(
+  albumId: string,
+  payload: AlbumTrackReorderPayload,
+): Promise<Track[]> {
+  const results = await Promise.all(
+    payload.trackIds.map((trackId, index) =>
+      supabase
+        .from('album_tracks')
+        .update({ position: index })
+        .eq('album_id', albumId)
+        .eq('track_id', trackId),
+    ),
+  );
+
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    throw new Error(`Failed to reorder album tracks: ${failed.error.message}`);
+  }
+
+  return getAlbumTracks(albumId);
 }

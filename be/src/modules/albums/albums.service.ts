@@ -7,8 +7,16 @@ import {
   deleteAlbum,
   addTrackToAlbum,
   removeTrackFromAlbum,
+  reorderAlbumTracks,
 } from './albums.repository.js';
-import type { Album, AlbumWithCount, AlbumInsert, AlbumUpdate, AlbumTrack } from './albums.types.js';
+import type {
+  Album,
+  AlbumTrack,
+  AlbumTrackReorderPayload,
+  AlbumWithCount,
+  AlbumInsert,
+  AlbumUpdate,
+} from './albums.types.js';
 import type { Track } from '../tracks/tracks.types.js';
 
 export async function listAlbums(): Promise<AlbumWithCount[]> {
@@ -43,4 +51,15 @@ export async function appendTrackToAlbum(albumId: string, trackId: string): Prom
 
 export async function detachTrackFromAlbum(albumId: string, trackId: string): Promise<void> {
   return removeTrackFromAlbum(albumId, trackId);
+}
+
+export async function reorderTracksInAlbum(
+  albumId: string,
+  payload: AlbumTrackReorderPayload,
+): Promise<Track[]> {
+  if (!Array.isArray(payload.trackIds) || payload.trackIds.length === 0) {
+    throw new Error('trackIds is required');
+  }
+
+  return reorderAlbumTracks(albumId, payload);
 }

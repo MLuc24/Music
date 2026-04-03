@@ -14,4 +14,6 @@ export const albumsApi = {
     api.addTrackToAlbum(albumId, trackId),
   removeTrack: (albumId: string, trackId: string): Promise<void> =>
     api.removeTrackFromAlbum(albumId, trackId),
+  reorderTracks: (albumId: string, trackIds: string[]): Promise<AlbumDetail> =>
+    api.reorderAlbumTracks(albumId, trackIds),
 };

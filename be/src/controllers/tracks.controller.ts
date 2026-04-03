@@ -1,9 +1,34 @@
 import type { Request, Response } from 'express';
 import { listTracks, removeTrack, toggleFavorite, updateTrackInfo } from '../modules/tracks/tracks.service.js';
+import type { TrackQuery, TrackSortOption } from '../modules/tracks/tracks.types.js';
 
-export async function getAllTracks(_req: Request, res: Response) {
+function parseTrackQuery(req: Request): TrackQuery {
+  const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+  const favorite = typeof req.query.favorite === 'string'
+    ? req.query.favorite === 'true'
+      ? true
+      : req.query.favorite === 'false'
+        ? false
+        : undefined
+    : undefined;
+  const albumId = typeof req.query.albumId === 'string' ? req.query.albumId : undefined;
+  const sort = typeof req.query.sort === 'string' ? req.query.sort as TrackSortOption : undefined;
+  const limit = typeof req.query.limit === 'string' ? Number.parseInt(req.query.limit, 10) : undefined;
+  const offset = typeof req.query.offset === 'string' ? Number.parseInt(req.query.offset, 10) : undefined;
+
+  return {
+    q,
+    favorite,
+    albumId,
+    sort,
+    limit: Number.isFinite(limit) ? limit : undefined,
+    offset: Number.isFinite(offset) ? offset : undefined,
+  };
+}
+
+export async function getAllTracks(req: Request, res: Response) {
   try {
-    const tracks = await listTracks();
+    const tracks = await listTracks(parseTrackQuery(req));
     res.json(tracks);
   } catch (error) {
     res.status(500).json({ 
@@ -15,13 +40,7 @@ export async function getAllTracks(_req: Request, res: Response) {
 export async function deleteTrack(req: Request, res: Response) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { storagePath } = req.body;
-
-    if (!storagePath) {
-      return res.status(400).json({ error: 'storagePath is required' });
-    }
-
-    await removeTrack(id, storagePath);
+    await removeTrack(id);
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ 

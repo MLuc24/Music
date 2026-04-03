@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { usePlayerStore } from './playerStore';
+import { logAppError } from '../../lib/logger';
 
-/** Syncs the HTML audio element with the player Zustand store.
- *  Must be called exactly ONCE — in App.tsx — and seek passed down as prop. */
 export function useAudioSync() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamUrl = usePlayerStore((state) => state.streamUrl);
@@ -13,21 +12,21 @@ export function useAudioSync() {
   const setCurrentTime = usePlayerStore((state) => state.setCurrentTime);
   const setDuration = usePlayerStore((state) => state.setDuration);
   const setIsPlaying = usePlayerStore((state) => state.setIsPlaying);
+  const playNextFromQueue = usePlayerStore((state) => state.playNextFromQueue);
 
-  // Initialize audio element once
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.preload = 'metadata';
+
     return () => {
       audioRef.current?.pause();
       audioRef.current = null;
     };
   }, []);
 
-  // Sync stream URL
   useEffect(() => {
-    if (!audioRef.current) return;
     const audio = audioRef.current;
+    if (!audio) return;
 
     if (!streamUrl) {
       audio.pause();
@@ -44,44 +43,43 @@ export function useAudioSync() {
     }
   }, [streamUrl, setCurrentTime, setDuration]);
 
-  // Sync play/pause
   useEffect(() => {
-    if (!audioRef.current || !streamUrl) return;
+    const audio = audioRef.current;
+    if (!audio || !streamUrl) return;
+
     if (isPlaying) {
-      audioRef.current.play().catch((error) => {
-        console.error('Audio playback failed:', error);
+      audio.play().catch((error) => {
+        logAppError('audio', 'Audio playback failed', error);
         setIsPlaying(false);
       });
     } else {
-      audioRef.current.pause();
+      audio.pause();
     }
-  }, [isPlaying, streamUrl, setIsPlaying]);
+  }, [isPlaying, setIsPlaying, streamUrl]);
 
-  // Sync volume
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  // Sync loop
   useEffect(() => {
     if (audioRef.current) audioRef.current.loop = isLooping;
   }, [isLooping]);
 
-  // Sync playback rate
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playbackRate;
   }, [playbackRate]);
 
-  // Register audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
     const onDurationChange = () => setDuration(audio.duration || 0);
-    const onEnded = () => setIsPlaying(false);
+    const onEnded = () => {
+      void playNextFromQueue();
+    };
     const onError = () => {
-      console.error('Audio element error:', audio.error);
+      logAppError('audio', 'Audio element error', audio.error);
       setIsPlaying(false);
     };
 
@@ -96,10 +94,12 @@ export function useAudioSync() {
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [setCurrentTime, setDuration, setIsPlaying]);
+  }, [playNextFromQueue, setCurrentTime, setDuration, setIsPlaying]);
 
   const seek = useCallback((time: number) => {
-    if (audioRef.current) audioRef.current.currentTime = time;
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+    }
   }, []);
 
   return { seek };

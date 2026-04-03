@@ -1,7 +1,29 @@
-import type { Track, AlbumWithCount, AlbumDetail, Album } from '../types/database';
+import type {
+  Album,
+  AlbumDetail,
+  AlbumWithCount,
+  LibrarySummary,
+  Track,
+  TrackQuery,
+} from '../types/database';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const IS_DEV = import.meta.env.DEV;
+const STREAM_URL_TTL_MS = 45 * 60 * 1000;
+
+const streamUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+function createQueryString(query?: Record<string, string | number | boolean | undefined>) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value === undefined || value === null || value === '') continue;
+    params.set(key, String(value));
+  }
+
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
 
 export interface DownloadProgress {
   trackId: string;
@@ -9,6 +31,7 @@ export interface DownloadProgress {
   status: 'downloading' | 'processing' | 'done' | 'error';
   error?: string;
   track?: Track;
+  duplicate?: boolean;
 }
 
 export interface VideoPreview {
@@ -23,25 +46,34 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  async getTracks(): Promise<Track[]> {
-    const response = await fetch(`${this.baseUrl}/tracks`);
+  async getTracks(query?: TrackQuery): Promise<Track[]> {
+    const response = await fetch(
+      `${this.baseUrl}/tracks${createQueryString(query as Record<string, string | number | boolean | undefined> | undefined)}`,
+    );
     if (!response.ok) throw new Error('Failed to fetch tracks');
     return response.json();
   }
 
-  async deleteTrack(id: string, storagePath: string): Promise<void> {
+  async deleteTrack(id: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/tracks/${id}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storagePath }),
     });
     if (!response.ok) throw new Error('Failed to delete track');
   }
 
   async getStreamUrl(storagePath: string): Promise<string> {
+    const cached = streamUrlCache.get(storagePath);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+
     const response = await fetch(`${this.baseUrl}/player?path=${encodeURIComponent(storagePath)}`);
     if (!response.ok) throw new Error('Failed to get stream URL');
     const data = await response.json();
+    streamUrlCache.set(storagePath, {
+      url: data.url,
+      expiresAt: Date.now() + STREAM_URL_TTL_MS,
+    });
     return data.url;
   }
 
@@ -72,6 +104,12 @@ class ApiClient {
   async getAlbums(): Promise<AlbumWithCount[]> {
     const response = await fetch(`${this.baseUrl}/albums`);
     if (!response.ok) throw new Error('Failed to fetch albums');
+    return response.json();
+  }
+
+  async getLibrarySummary(): Promise<LibrarySummary> {
+    const response = await fetch(`${this.baseUrl}/library/summary`);
+    if (!response.ok) throw new Error('Failed to fetch library summary');
     return response.json();
   }
 
@@ -122,6 +160,19 @@ class ApiClient {
     if (!response.ok) throw new Error('Failed to remove track from album');
   }
 
+  async reorderAlbumTracks(albumId: string, trackIds: string[]): Promise<AlbumDetail> {
+    const response = await fetch(`${this.baseUrl}/albums/${albumId}/tracks/reorder`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackIds }),
+    });
+    if (!response.ok) throw new Error('Failed to reorder album tracks');
+
+    const data = await response.json() as { tracks: Track[] };
+    const detail = await this.getAlbumDetail(albumId);
+    return { ...detail, tracks: data.tracks };
+  }
+
   async downloadAudio(
     url: string,
     onProgress: (progress: DownloadProgress) => void
@@ -156,6 +207,7 @@ class ApiClient {
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
+          let buffer = '';
 
           const readStream = () => {
             reader.read().then(({ done, value }) => {
@@ -163,8 +215,9 @@ class ApiClient {
                 return;
               }
 
-              const chunk = decoder.decode(value);
-              const lines = chunk.split('\n\n').filter(Boolean);
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n\n');
+              buffer = lines.pop() ?? '';
 
               for (const line of lines) {
                 if (line.startsWith('data: ')) {

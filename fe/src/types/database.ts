@@ -16,6 +16,56 @@ export interface Track {
 export type TrackInsert = Omit<Track, 'id' | 'created_at' | 'updated_at'>;
 export type TrackUpdate = Partial<TrackInsert>;
 
+export type TrackSortOption =
+  | 'newest'
+  | 'oldest'
+  | 'title_asc'
+  | 'title_desc'
+  | 'artist_asc'
+  | 'artist_desc';
+
+export interface TrackQuery {
+  q?: string;
+  favorite?: boolean;
+  albumId?: string;
+  sort?: TrackSortOption;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LibrarySummary {
+  totalTracks: number;
+  favoriteTracks: number;
+  totalAlbums: number;
+  recentTracks: Track[];
+}
+
+export interface PlayerQueueItem {
+  id: string;
+  track: Track;
+}
+
+export interface BulkTrackActionPayload {
+  trackIds: string[];
+  action: 'favorite' | 'unfavorite' | 'delete' | 'add_to_album';
+  albumId?: string;
+}
+
+export type DownloadItemStatus = 'queued' | 'downloading' | 'processing' | 'done' | 'error';
+
+export interface DownloadItemState {
+  id: string;
+  url: string;
+  title: string | null;
+  thumbnailUrl: string | null;
+  progress: number;
+  status: DownloadItemStatus;
+  error: string | null;
+  track: Track | null;
+  duplicate: boolean;
+  createdAt: number;
+}
+
 export interface Album {
   id: string;
   name: string;

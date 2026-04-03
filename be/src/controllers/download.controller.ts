@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import fs from 'fs';
 import { downloadAudio, isYouTubeUrl, getVideoPreview } from '../modules/download/download.service.js';
 import { uploadAudio } from '../modules/storage/storage.service.js';
-import { addTrack } from '../modules/tracks/tracks.service.js';
+import { addTrack, findTrackByYoutubeUrl } from '../modules/tracks/tracks.service.js';
 
 export async function getYouTubePreview(req: Request, res: Response) {
   const url = req.query.url as string;
@@ -37,9 +37,22 @@ export async function downloadYouTubeAudio(req: Request, res: Response) {
   res.setHeader('Connection', 'keep-alive');
 
   try {
+    const existingTrack = await findTrackByYoutubeUrl(url);
+    if (existingTrack) {
+      res.write(`data: ${JSON.stringify({
+        trackId: existingTrack.id,
+        percent: 100,
+        status: 'done',
+        track: existingTrack,
+        duplicate: true,
+      })}\n\n`);
+      res.end();
+      return;
+    }
+
     console.log('🎵 Starting audio download...');
     // Download audio with progress streaming
-    const { trackId, filePath, title, thumbnailUrl } = await downloadAudio(url, (progress) => {
+    const { trackId, filePath, title, thumbnailUrl, artist } = await downloadAudio(url, (progress) => {
       console.log('Progress:', progress);
       res.write(`data: ${JSON.stringify(progress)}\n\n`);
     });
@@ -63,7 +76,7 @@ export async function downloadYouTubeAudio(req: Request, res: Response) {
       storage_path: storagePath,
       duration_seconds: null,
       thumbnail_url: thumbnailUrl,
-      artist: null,
+      artist,
       is_favorite: false,
     });
     console.log('✅ Database save complete');

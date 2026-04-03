@@ -1,27 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useYouTubeDownload } from './useYouTubeDownload';
-import { useQueryClient } from '@tanstack/react-query';
-import { TRACKS_QUERY_KEY } from '../tracks/hooks';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { api } from '../../lib/api';
-import type { Track } from '../../types/database';
+import { useDownloadCenterStore } from './downloadCenterStore';
 import type { VideoPreview } from '../../lib/api';
 
 const YOUTUBE_URL_PATTERN = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/;
 
 export function DownloaderContainer() {
+  const enqueueDownload = useDownloadCenterStore((state) => state.enqueueDownload);
+  const items = useDownloadCenterStore((state) => state.items);
+  const activeItem = items.find((item) => item.status === 'downloading' || item.status === 'processing') ?? null;
+
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   const [preview, setPreview] = useState<VideoPreview | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-  const queryClient = useQueryClient();
-
-  const handleSuccess = (track: Track) => {
-    queryClient.setQueryData<Track[]>(TRACKS_QUERY_KEY, (old = []) => [track, ...old]);
-    setUrl('');
-    setPreview(null);
-  };
-
-  const { state, download } = useYouTubeDownload(handleSuccess);
 
   useEffect(() => {
     const trimmed = url.trim();
@@ -30,9 +23,11 @@ export function DownloaderContainer() {
       setIsLoadingPreview(false);
       return;
     }
+
     setIsLoadingPreview(true);
     setPreview(null);
-    const timer = setTimeout(async () => {
+
+    const timer = window.setTimeout(async () => {
       try {
         const result = await api.getPreview(trimmed);
         setPreview(result);
@@ -41,57 +36,57 @@ export function DownloaderContainer() {
       } finally {
         setIsLoadingPreview(false);
       }
-    }, 600);
-    return () => clearTimeout(timer);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
   }, [url]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (state.isDownloading) return;
+  const queueCount = useMemo(
+    () => items.filter((item) => item.status === 'queued').length,
+    [items],
+  );
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
     const trimmedUrl = url.trim();
+
     if (!YOUTUBE_URL_PATTERN.test(trimmedUrl)) {
-      setUrlError('Vui lòng nhập đường link YouTube hợp lệ');
+      setUrlError('Vui lòng nhập đường link YouTube hợp lệ.');
       return;
     }
+
+    enqueueDownload(trimmedUrl);
+    setUrl('');
+    setPreview(null);
     setUrlError(null);
-    download(trimmedUrl);
   };
 
   return (
     <div className="downloader">
       <form className="downloader__form" onSubmit={handleSubmit}>
         <div className="downloader__input-wrap">
-          <span className="downloader__icon">🔗</span>
+          <span className="downloader__icon">↗</span>
           <input
             className={`downloader__input${urlError ? ' downloader__input--error' : ''}`}
             type="url"
-            placeholder="Dán link YouTube vào đây..."
+            placeholder="Dán link YouTube để thêm vào hàng đợi tải..."
             value={url}
-            onChange={(e) => { setUrl(e.target.value); setUrlError(null); }}
-            disabled={state.isDownloading}
+            onChange={(event) => {
+              setUrl(event.target.value);
+              setUrlError(null);
+            }}
             aria-label="YouTube URL"
           />
         </div>
-        <button
-          className="downloader__btn"
-          type="submit"
-          disabled={state.isDownloading || !url.trim()}
-        >
-          {state.isDownloading ? (
-            <span className="downloader__btn-loading">
-              <span className="downloader__spinner" />
-              Đang tải...
-            </span>
-          ) : (
-            '↓ Tải về'
-          )}
+        <button className="downloader__btn" type="submit" disabled={!url.trim()}>
+          Thêm vào hàng đợi
         </button>
       </form>
 
-      {urlError && <p className="downloader__field-error">{urlError}</p>}
+      {urlError ? <p className="downloader__field-error">{urlError}</p> : null}
 
-      {(isLoadingPreview || preview) && (
-        <div className={`downloader__preview${state.isDownloading ? ' downloader__preview--downloading' : ''}`}>
+      {(isLoadingPreview || preview) ? (
+        <div className={`downloader__preview${activeItem ? ' downloader__preview--downloading' : ''}`}>
           {isLoadingPreview ? (
             <div className="downloader__preview-skeleton">
               <div className="downloader__preview-thumb-skeleton" />
@@ -102,53 +97,37 @@ export function DownloaderContainer() {
             </div>
           ) : preview ? (
             <>
-              <img
-                className="downloader__preview-thumb"
-                src={preview.thumbnailUrl}
-                alt={preview.title}
-              />
+              <img className="downloader__preview-thumb" src={preview.thumbnailUrl} alt={preview.title} />
               <div className="downloader__preview-info">
                 <p className="downloader__preview-title">{preview.title}</p>
                 <p className="downloader__preview-label">
-                  {state.isDownloading ? '⏬ Đang tải xuống...' : 'YouTube Video'}
+                  {activeItem ? `Đang xử lý • còn ${queueCount} mục chờ` : 'Sẵn sàng tải xuống'}
                 </p>
               </div>
             </>
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {state.isDownloading && (
-        <DownloadProgressBar progress={state.progress} status={state.status} />
-      )}
-      {state.error && <p className="downloader__error">{state.error}</p>}
-    </div>
-  );
-}
-
-// ─── Presentational sub-components ────────────────────────────────────────────
-
-interface DownloadProgressBarProps {
-  progress: number;
-  status: string | null;
-}
-
-function DownloadProgressBar({ progress, status }: DownloadProgressBarProps) {
-  return (
-    <div className="downloader__progress-wrap">
-      <div className="downloader__progress">
-        <div
-          className="downloader__progress-bar"
-          style={{ width: `${progress}%` }}
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        />
-      </div>
-      <span className="downloader__progress-label">
-        {status === 'processing' ? '⚙️ Đang xử lý...' : `${Math.round(progress)}%`}
-      </span>
+      {activeItem ? (
+        <div className="downloader__progress-wrap">
+          <div className="downloader__progress">
+            <div
+              className="downloader__progress-bar"
+              style={{ width: `${activeItem.progress}%` }}
+              role="progressbar"
+              aria-valuenow={activeItem.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+          <span className="downloader__progress-label">
+            {activeItem.status === 'processing'
+              ? 'Đang xử lý file...'
+              : `${Math.round(activeItem.progress)}% • ${queueCount} mục đang chờ`}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }

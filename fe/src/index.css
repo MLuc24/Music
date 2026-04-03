@@ -1,41 +1,38 @@
-/* ─── Reset & Base ──────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  /* Background layers — light theme */
-  --bg-base: #f4f3ff;
-  --bg-primary: #ece9ff;
-  --bg-surface: #ffffff;
-  --bg-surface-2: #f0eeff;
-  --bg-surface-3: #e8e4ff;
-  --bg-surface-hover: #ede8ff;
+  --bg-base: #f5f0e7;
+  --bg-primary: #efe7da;
+  --bg-surface: #fffdfa;
+  --bg-surface-2: #f5efe4;
+  --bg-surface-3: #ece3d4;
+  --bg-surface-hover: #f3ecdf;
 
-  /* Borders */
-  --border: rgba(139, 92, 246, 0.15);
-  --border-subtle: rgba(139, 92, 246, 0.07);
-  --border-strong: rgba(139, 92, 246, 0.28);
-  --border-accent: rgba(139, 92, 246, 0.45);
+  --border: rgba(113, 89, 61, 0.16);
+  --border-subtle: rgba(113, 89, 61, 0.08);
+  --border-strong: rgba(113, 89, 61, 0.28);
+  --border-accent: rgba(170, 107, 67, 0.34);
 
-  /* Accent – purple/violet (deeper for light bg) */
-  --accent: #7c3aed;
-  --accent-bright: #9333ea;
-  --accent-hover: #6d28d9;
-  --accent-dim: rgba(124, 58, 237, 0.1);
-  --accent-glow: rgba(124, 58, 237, 0.22);
-  --accent-glow-strong: rgba(124, 58, 237, 0.38);
+  --accent: #aa6b43;
+  --accent-bright: #cf9d55;
+  --accent-hover: #935838;
+  --accent-dim: rgba(170, 107, 67, 0.12);
+  --accent-glow: rgba(170, 107, 67, 0.22);
+  --accent-glow-strong: rgba(170, 107, 67, 0.34);
 
-  /* Text */
-  --text-primary: #1a1035;
-  --text-secondary: #5b4d8a;
-  --text-muted: #9a8ec0;
+  --text-primary: #2b2119;
+  --text-secondary: #7b6654;
+  --text-muted: #a4917b;
   --text-error: #dc2626;
-  --text-success: #16a34a;
+  --text-success: #15803d;
 
-  /* Dimensions */
   --header-height: 64px;
   --player-height: 96px;
 
-  /* Radii */
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -43,12 +40,14 @@
   --radius-xl: 22px;
 }
 
-html, body, #root { height: 100%; }
+html, body, #root {
+  height: 100%;
+}
 
 body {
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI', 'Trebuchet MS', 'Verdana', sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -57,14 +56,13 @@ body {
   color-scheme: light;
 }
 
-/* Subtle noise texture overlay for premium feel */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.04) 0%, transparent 50%),
-    radial-gradient(circle at 80% 100%, rgba(124, 58, 237, 0.04) 0%, transparent 50%);
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(170, 107, 67, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 100%, rgba(207, 157, 85, 0.04) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -77,44 +75,61 @@ button {
   font: inherit;
 }
 
-input, button { outline: none; }
-input:focus-visible, button:focus-visible {
+input, button {
+  outline: none;
+}
+
+input:focus-visible,
+button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.18); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.32); }
+::-webkit-scrollbar {
+  width: 4px;
+}
 
-/* Range input */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(170, 107, 67, 0.18);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(170, 107, 67, 0.32);
+}
+
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   cursor: pointer;
 }
+
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 13px;
   height: 13px;
   border-radius: 50%;
   background: #fff;
-  cursor: pointer;
   margin-top: -4.5px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   transition: transform 0.12s;
 }
-input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.35); }
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.35);
+}
+
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
   background: var(--border);
 }
 
-/* ─── Keyframes ──────────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes spin-disc { to { transform: rotate(360deg); } }
 @keyframes shimmer {
@@ -123,33 +138,31 @@ input[type="range"]::-webkit-slider-runnable-track {
 }
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes fadeIn {
   from { opacity: 0; }
-  to   { opacity: 1; }
+  to { opacity: 1; }
 }
 @keyframes progress-pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.75; }
+  50% { opacity: 0.75; }
 }
-@keyframes bar1 { 0%,100%{height:5px}  50%{height:16px} }
-@keyframes bar2 { 0%,100%{height:14px} 50%{height:5px}  }
-@keyframes bar3 { 0%,100%{height:9px}  50%{height:18px} }
-@keyframes bar4 { 0%,100%{height:12px} 50%{height:6px}  }
 
-/* ─── Shared skeleton ──────────────────────────────────────────────────── */
 .skeleton-line {
   border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--bg-surface-2) 25%,
-    var(--bg-surface-3) 50%,
-    var(--bg-surface-2) 75%
-  );
+  background: linear-gradient(90deg, var(--bg-surface-2) 25%, var(--bg-surface-3) 50%, var(--bg-surface-2) 75%);
   background-size: 400px 100%;
   animation: shimmer 1.5s infinite;
 }
-.skeleton-line--lg { width: 78%; height: 14px; margin-bottom: 8px; }
-.skeleton-line--sm { width: 48%; height: 11px; }
 
+.skeleton-line--lg {
+  width: 78%;
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-line--sm {
+  width: 48%;
+  height: 11px;
+}
