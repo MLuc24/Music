@@ -57,8 +57,8 @@ export async function downloadYouTubeAudio(req: Request, res: Response) {
       res.write(`data: ${JSON.stringify(progress)}\n\n`);
     });
 
-    console.log('☁️ Uploading to storage...');
-    // Upload to storage
+    console.log('💾 Saving audio locally...');
+    // Save audio to local storage
     res.write(`data: ${JSON.stringify({ 
       trackId, 
       percent: 99, 
@@ -66,7 +66,7 @@ export async function downloadYouTubeAudio(req: Request, res: Response) {
     })}\n\n`);
     
     const storagePath = await uploadAudio(trackId, filePath);
-    console.log('✅ Upload complete:', storagePath);
+    console.log('✅ Local audio saved:', storagePath);
 
     console.log('💾 Saving to database...');
     // Save to database

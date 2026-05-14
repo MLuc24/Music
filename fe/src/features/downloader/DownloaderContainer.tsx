@@ -79,6 +79,7 @@ export function DownloaderContainer() {
           />
         </div>
         <button className="downloader__btn" type="submit" disabled={!url.trim()}>
+          <span aria-hidden="true">+</span>
           Thêm vào hàng đợi
         </button>
       </form>

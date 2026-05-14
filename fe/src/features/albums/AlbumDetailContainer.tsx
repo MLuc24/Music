@@ -70,7 +70,7 @@ export function AlbumDetailContainer({ albumId }: Props) {
     <div className="album-detail">
       <div className="album-detail__hero">
         <button className="album-detail__back-btn" onClick={() => setSelectedAlbumId(null)}>
-          ← Tất cả albums
+          ← Tất cả album
         </button>
 
         <div className="album-detail__cover">
@@ -92,7 +92,7 @@ export function AlbumDetailContainer({ albumId }: Props) {
               Phát album
             </button>
             <button className="album-detail__secondary-btn" onClick={() => addToQueue(data.tracks, 'end')}>
-              Thêm vào queue
+              Thêm vào hàng chờ
             </button>
             <button className="album-detail__secondary-btn" onClick={() => setIsAddTracksOpen(true)}>
               + Thêm bài hát

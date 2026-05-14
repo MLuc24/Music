@@ -1,32 +1,35 @@
-import fs from 'fs/promises';
-import { supabase } from '../../config/supabase.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { audioDir, ensureLocalDataDirs } from '../../config/paths.js';
 
-const BUCKET = 'audio';
+export function resolveAudioPath(storagePath: string): string {
+  const resolved = path.resolve(audioDir, storagePath);
+  const relative = path.relative(audioDir, resolved);
+
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid audio path');
+  }
+
+  return resolved;
+}
 
 export async function uploadAudio(trackId: string, localFilePath: string): Promise<string> {
-  const fileBuffer = await fs.readFile(localFilePath);
-  // Keep new uploads at the bucket root so playback URLs do not depend on
-  // slash-containing route params and storage policies stay simple.
+  ensureLocalDataDirs();
+
   const storagePath = `${trackId}.mp3`;
+  const destination = resolveAudioPath(storagePath);
 
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, fileBuffer, { contentType: 'audio/mpeg', upsert: false });
-
-  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+  await fs.copyFile(localFilePath, destination);
   return storagePath;
 }
 
 export async function deleteAudio(storagePath: string): Promise<void> {
-  const { error } = await supabase.storage.from(BUCKET).remove([storagePath]);
-  if (error) throw new Error(`Storage delete failed: ${error.message}`);
+  try {
+    await fs.unlink(resolveAudioPath(storagePath));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(`Storage delete failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 }
 
-export async function getSignedUrl(storagePath: string): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(storagePath, 3600);
-
-  if (error) throw new Error(`Failed to create signed URL: ${error.message}`);
-  return data.signedUrl;
-}

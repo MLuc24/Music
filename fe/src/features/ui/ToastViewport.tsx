@@ -9,7 +9,11 @@ export function ToastViewport() {
   return (
     <div className="toast-stack" aria-live="polite" aria-atomic="true">
       {toasts.map((toast) => (
-        <div key={toast.id} className={`toast toast--${toast.tone ?? 'default'}`}>
+        <div
+          key={toast.id}
+          className={`toast toast--${toast.tone ?? 'default'}`}
+          role={toast.tone === 'error' ? 'alert' : 'status'}
+        >
           <div className="toast__content">
             <p className="toast__title">{toast.title}</p>
             {toast.description ? <p className="toast__description">{toast.description}</p> : null}

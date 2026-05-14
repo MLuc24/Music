@@ -22,8 +22,6 @@ extraResources:
     to: public
     filter:
       - "**/*"
-  - from: resources/runtime-config.json
-    to: runtime-config.json
   - from: dist/be-bundle.cjs
     to: be-bundle.cjs
 

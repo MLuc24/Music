@@ -17,6 +17,7 @@ interface PlayerState {
   playHistory: string[];
 
   setCurrentTrack: (track: Track, streamUrl: string) => void;
+  updateCurrentTrack: (track: Track) => void;
   playTrack: (track: Track) => Promise<void>;
   playTracks: (tracks: Track[], startIndex?: number) => Promise<void>;
   addToQueue: (tracks: Track[], placement?: 'next' | 'end') => void;
@@ -54,6 +55,11 @@ export const usePlayerStore = create<PlayerState>((set) => ({
       isPlaying: true,
       currentTime: 0,
       playHistory: state.currentTrack ? [state.currentTrack.id, ...state.playHistory].slice(0, 30) : state.playHistory,
+    })),
+  updateCurrentTrack: (track) =>
+    set((state) => ({
+      currentTrack: state.currentTrack?.id === track.id ? track : state.currentTrack,
+      queue: state.queue.map((item) => (item.track.id === track.id ? { ...item, track } : item)),
     })),
   playTrack: async (track) => {
     try {

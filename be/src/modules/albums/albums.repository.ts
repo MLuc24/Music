@@ -1,4 +1,4 @@
-import { supabase } from '../../config/supabase.js';
+import { db } from '../../config/database.js';
 import type {
   Album,
   AlbumTrack,
@@ -9,125 +9,151 @@ import type {
 } from './albums.types.js';
 import type { Track } from '../tracks/tracks.types.js';
 
+type TrackRow = Omit<Track, 'is_favorite'> & { is_favorite: 0 | 1 };
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function mapTrack(row: TrackRow): Track {
+  return {
+    ...row,
+    is_favorite: row.is_favorite === 1,
+  };
+}
+
 export async function getAllAlbums(): Promise<AlbumWithCount[]> {
-  const [{ data: albums, error: albumsError }, { data: junctions, error: jError }] =
-    await Promise.all([
-      supabase.from('albums').select('*').order('created_at', { ascending: false }),
-      supabase.from('album_tracks').select('album_id'),
-    ]);
+  const rows = db.prepare(`
+    SELECT
+      albums.*,
+      COUNT(album_tracks.track_id) AS track_count
+    FROM albums
+    LEFT JOIN album_tracks ON album_tracks.album_id = albums.id
+    GROUP BY albums.id
+    ORDER BY albums.created_at DESC
+  `).all() as AlbumWithCount[];
 
-  if (albumsError) throw new Error(`Failed to fetch albums: ${albumsError.message}`);
-  if (jError) throw new Error(`Failed to fetch album track counts: ${jError.message}`);
-
-  const countMap = new Map<string, number>();
-  (junctions ?? []).forEach(({ album_id }) => {
-    countMap.set(album_id, (countMap.get(album_id) ?? 0) + 1);
-  });
-
-  return (albums as Album[]).map((album) => ({
-    ...album,
-    track_count: countMap.get(album.id) ?? 0,
-  }));
+  return rows;
 }
 
 export async function getAlbumById(id: string): Promise<Album | null> {
-  const { data, error } = await supabase
-    .from('albums')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) return null;
-  return data as Album;
+  const row = db.prepare('SELECT * FROM albums WHERE id = ?').get(id) as Album | undefined;
+  return row ?? null;
 }
 
 export async function getAlbumTracks(albumId: string): Promise<Track[]> {
-  const { data, error } = await supabase
-    .from('album_tracks')
-    .select('tracks(*)')
-    .eq('album_id', albumId)
-    .order('position', { ascending: true });
+  const rows = db.prepare(`
+    SELECT tracks.*
+    FROM album_tracks
+    INNER JOIN tracks ON tracks.id = album_tracks.track_id
+    WHERE album_tracks.album_id = ?
+    ORDER BY album_tracks.position ASC
+  `).all(albumId) as TrackRow[];
 
-  if (error) throw new Error(`Failed to fetch album tracks: ${error.message}`);
-  return (data as { tracks: unknown }[]).map((row) => (row as { tracks: Track }).tracks);
+  return rows.map(mapTrack);
 }
 
 export async function createAlbum(insert: AlbumInsert): Promise<Album> {
-  const { data, error } = await supabase
-    .from('albums')
-    .insert(insert)
-    .select()
-    .single();
+  const id = crypto.randomUUID();
+  const timestamp = nowIso();
 
-  if (error) throw new Error(`Failed to create album: ${error.message}`);
-  return data as Album;
+  db.prepare(`
+    INSERT INTO albums (id, name, description, cover_url, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    insert.name,
+    insert.description,
+    insert.cover_url,
+    timestamp,
+    timestamp,
+  );
+
+  const album = await getAlbumById(id);
+  if (!album) throw new Error('Failed to create album');
+  return album;
 }
 
 export async function updateAlbum(id: string, update: AlbumUpdate): Promise<Album> {
-  const { data, error } = await supabase
-    .from('albums')
-    .update(update)
-    .eq('id', id)
-    .select()
-    .single();
+  const updates: string[] = [];
+  const params: Record<string, string | null> = { id, updatedAt: nowIso() };
 
-  if (error) throw new Error(`Failed to update album: ${error.message}`);
-  return data as Album;
+  if (update.name !== undefined) {
+    updates.push('name = @name');
+    params.name = update.name;
+  }
+
+  if (update.description !== undefined) {
+    updates.push('description = @description');
+    params.description = update.description;
+  }
+
+  if (update.cover_url !== undefined) {
+    updates.push('cover_url = @coverUrl');
+    params.coverUrl = update.cover_url;
+  }
+
+  if (updates.length) {
+    db.prepare(`
+      UPDATE albums
+      SET ${updates.join(', ')}, updated_at = @updatedAt
+      WHERE id = @id
+    `).run(params);
+  }
+
+  const album = await getAlbumById(id);
+  if (!album) throw new Error('Album not found');
+  return album;
 }
 
 export async function deleteAlbum(id: string): Promise<void> {
-  const { error } = await supabase.from('albums').delete().eq('id', id);
-  if (error) throw new Error(`Failed to delete album: ${error.message}`);
+  db.prepare('DELETE FROM albums WHERE id = ?').run(id);
 }
 
 export async function addTrackToAlbum(albumId: string, trackId: string): Promise<AlbumTrack> {
-  const { data: existing } = await supabase
-    .from('album_tracks')
-    .select('position')
-    .eq('album_id', albumId)
-    .order('position', { ascending: false })
-    .limit(1);
+  const existing = db.prepare(`
+    SELECT position
+    FROM album_tracks
+    WHERE album_id = ?
+    ORDER BY position DESC
+    LIMIT 1
+  `).get(albumId) as { position: number } | undefined;
 
-  const nextPosition = existing?.length ? existing[0].position + 1 : 0;
+  const id = crypto.randomUUID();
+  const nextPosition = existing ? existing.position + 1 : 0;
+  const addedAt = nowIso();
 
-  const { data, error } = await supabase
-    .from('album_tracks')
-    .insert({ album_id: albumId, track_id: trackId, position: nextPosition })
-    .select()
-    .single();
+  db.prepare(`
+    INSERT INTO album_tracks (id, album_id, track_id, position, added_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, albumId, trackId, nextPosition, addedAt);
 
-  if (error) throw new Error(`Failed to add track to album: ${error.message}`);
-  return data as AlbumTrack;
+  const row = db.prepare('SELECT * FROM album_tracks WHERE id = ?').get(id) as AlbumTrack | undefined;
+  if (!row) throw new Error('Failed to add track to album');
+  return row;
 }
 
 export async function removeTrackFromAlbum(albumId: string, trackId: string): Promise<void> {
-  const { error } = await supabase
-    .from('album_tracks')
-    .delete()
-    .eq('album_id', albumId)
-    .eq('track_id', trackId);
-
-  if (error) throw new Error(`Failed to remove track from album: ${error.message}`);
+  db.prepare('DELETE FROM album_tracks WHERE album_id = ? AND track_id = ?').run(albumId, trackId);
 }
 
 export async function reorderAlbumTracks(
   albumId: string,
   payload: AlbumTrackReorderPayload,
 ): Promise<Track[]> {
-  const results = await Promise.all(
-    payload.trackIds.map((trackId, index) =>
-      supabase
-        .from('album_tracks')
-        .update({ position: index })
-        .eq('album_id', albumId)
-        .eq('track_id', trackId),
-    ),
-  );
+  const update = db.prepare(`
+    UPDATE album_tracks
+    SET position = ?
+    WHERE album_id = ? AND track_id = ?
+  `);
 
-  const failed = results.find((result) => result.error);
-  if (failed?.error) {
-    throw new Error(`Failed to reorder album tracks: ${failed.error.message}`);
-  }
+  const reorder = db.transaction((trackIds: string[]) => {
+    trackIds.forEach((trackId, index) => {
+      update.run(index, albumId, trackId);
+    });
+  });
 
+  reorder(payload.trackIds);
   return getAlbumTracks(albumId);
 }
+

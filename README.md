@@ -1,112 +1,102 @@
-# Nhạc - YouTube Audio Downloader
+# Nhac - YouTube Audio Downloader
 
-Web app để tải và nghe nhạc từ YouTube.
+Desktop/web app de tai va nghe nhac tu YouTube.
 
-## Kiến trúc
+## Kien Truc
 
 - **BE** (`be/`) - Node.js + Express + TypeScript
   - REST API server
-  - Supabase (PostgreSQL + Storage)
-  - yt-dlp để download audio
-
+  - SQLite local tai `~/Music/Nhac/music.sqlite`
+  - File audio local tai `~/Music/Nhac/audio/`
+  - yt-dlp + ffmpeg de download audio
 - **FE** (`fe/`) - React + Vite + TypeScript
   - React Query + Zustand
-  - Vite dev server
+- **Electron** (`electron/`) - dong goi desktop app va fork backend local.
 
-## Yêu cầu hệ thống
+## Yeu Cau
 
 - Node.js 20+
 - npm
-- **yt-dlp** cài đặt trong PATH ([hướng dẫn](https://github.com/yt-dlp/yt-dlp))
+- Internet de lay preview/lyrics va download tu YouTube
 
-## Cài đặt
+## Cai Dat
 
 ```bash
-# Clone repo
-git clone <repo-url>
-cd Nhac
-
-# Cài dependencies (workspaces)
 npm install
+```
 
-# Tạo .env cho BE
-cp be/.env.example be/.env
-# Điền SUPABASE_URL và SUPABASE_ANON_KEY vào be/.env
+Khong can Supabase env. Backend tu tao thu muc du lieu local khi chay:
 
-# Tạo .env cho FE (optional - có default)
-cp fe/.env.example fe/.env
+```text
+~/Music/Nhac/
+  music.sqlite
+  audio/
+  thumbnails/
 ```
 
 ## Development
 
 **Terminal 1 - BE:**
+
 ```bash
 cd be
 npm run dev
-# Server chạy tại http://localhost:3101
+# Server chay tai http://localhost:3101
 ```
 
 **Terminal 2 - FE:**
+
 ```bash
 cd fe
 npm run dev
-# App chạy tại http://localhost:5173
+# App chay tai http://localhost:5173
 ```
 
 ## Production Build
 
 ```bash
-# Build BE
-cd be
-npm run build
-npm start
+npm run build:be
+npm run build:fe
+```
 
-# Build FE
-cd fe
-npm run build
-npm run preview
+## Electron Release
+
+Dat binary `yt-dlp` vao `electron/resources/` truoc khi build:
+
+- Windows: `electron/resources/yt-dlp.exe`
+- macOS/Linux: `electron/resources/yt-dlp`
+
+```bash
+npm run release:win
+npm run release:mac
+npm run release:linux
 ```
 
 ## API Endpoints
 
-- `GET /api/tracks` - Lấy danh sách tracks
-- `DELETE /api/tracks/:id` - Xóa track
-- `POST /api/download` - Download audio từ YouTube (SSE stream)
-- `GET /api/player?path=...` - Lấy signed URL để stream
+- `GET /api/tracks` - lay danh sach tracks
+- `DELETE /api/tracks/:id` - xoa track va file audio local
+- `PATCH /api/tracks/:id` - sua title/artist
+- `PATCH /api/tracks/:id/favorite` - bat/tat favorite
+- `POST /api/download` - download audio tu YouTube bang SSE stream
+- `GET /api/player?path=...` - lay URL stream local
+- `GET /api/player/stream?path=...` - stream MP3 local, ho tro HTTP Range
 
 ## Tech Stack
 
 ### Backend
-- Express 4
+
+- Express
 - TypeScript
-- Supabase JS Client
-- yt-dlp (external binary)
+- SQLite (`better-sqlite3`)
+- yt-dlp
+- ffmpeg
 
 ### Frontend
+
 - React 19
-- Vite 8 beta
+- Vite
 - TanStack React Query v5
 - Zustand v5
 - TypeScript
 
-## Cấu trúc thư mục
-
-```
-.
-├── be/
-│   ├── src/
-│   │   ├── config/          # Env & Supabase config
-│   │   ├── modules/         # Business logic (tracks, download, storage)
-│   │   ├── controllers/     # HTTP controllers
-│   │   ├── routes/          # Express routes
-│   │   └── server.ts        # Entry point
-│   └── dist/                # Compiled output
-├── fe/
-│   ├── src/
-│   │   ├── features/        # React components (downloader, player, tracks)
-│   │   ├── lib/             # API client
-│   │   ├── types/           # TypeScript types
-│   │   └── main.tsx         # Entry point
-│   └── dist/                # Build output
-└── package.json             # Root workspace
-```

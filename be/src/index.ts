@@ -11,4 +11,4 @@ export { downloadAudio, isYouTubeUrl } from './modules/download/download.service
 export type { DownloadResult, DownloadProgress } from './modules/download/download.service.js';
 
 // Storage
-export { uploadAudio, deleteAudio, getSignedUrl } from './modules/storage/storage.service.js';
+export { uploadAudio, deleteAudio, resolveAudioPath } from './modules/storage/storage.service.js';

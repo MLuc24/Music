@@ -70,6 +70,7 @@ async function startBackend(port: number): Promise<void> {
         ELECTRON_STATIC_DIR: app.isPackaged
           ? path.join(process.resourcesPath, 'public')
           : path.join(process.cwd(), 'be', 'public'),
+        NHAC_DATA_DIR: path.join(app.getPath('music'), 'Nhac'),
         NODE_ENV: app.isPackaged ? 'production' : 'development',
       },
       stdio: shouldPipeLogs ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'ignore', 'ignore', 'ipc'],

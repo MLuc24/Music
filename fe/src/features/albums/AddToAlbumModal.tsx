@@ -25,33 +25,45 @@ export function AddToAlbumModal() {
   };
 
   const handleAdd = (albumId: string) => {
-    addTrack({ albumId, trackId: track.id }, {
-      onSuccess: () => setAddedAlbumIds((prev) => new Set([...prev, albumId])),
-    });
+    addTrack(
+      { albumId, trackId: track.id },
+      {
+        onSuccess: () => setAddedAlbumIds((prev) => new Set([...prev, albumId])),
+      },
+    );
   };
 
   const handleCreateAndAdd = () => {
     const name = newAlbumName.trim();
     if (!name) return;
-    createAlbum({ name }, {
-      onSuccess: (newAlbum) => {
-        addTrack({ albumId: newAlbum.id, trackId: track.id }, {
-          onSuccess: () => {
-            setAddedAlbumIds((prev) => new Set([...prev, newAlbum.id]));
-            setNewAlbumName('');
-            setShowCreate(false);
-          },
-        });
+
+    createAlbum(
+      { name },
+      {
+        onSuccess: (newAlbum) => {
+          addTrack(
+            { albumId: newAlbum.id, trackId: track.id },
+            {
+              onSuccess: () => {
+                setAddedAlbumIds((prev) => new Set([...prev, newAlbum.id]));
+                setNewAlbumName('');
+                setShowCreate(false);
+              },
+            },
+          );
+        },
       },
-    });
+    );
   };
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={(event) => event.stopPropagation()}>
         <div className="modal__header">
           <h3 className="modal__title">Thêm vào album</h3>
-          <button className="modal__close" onClick={handleClose}>✕</button>
+          <button className="modal__close" onClick={handleClose} aria-label="Đóng">
+            ✕
+          </button>
         </div>
         <p className="modal__subtitle">"{track.title}"</p>
 
@@ -72,11 +84,7 @@ export function AddToAlbumModal() {
                     {addedAlbumIds.has(album.id) ? (
                       <span className="modal__added-badge">✓ Đã thêm</span>
                     ) : (
-                      <button
-                        className="modal__add-btn"
-                        onClick={() => handleAdd(album.id)}
-                        disabled={isAdding}
-                      >
+                      <button className="modal__add-btn" onClick={() => handleAdd(album.id)} disabled={isAdding}>
                         + Thêm
                       </button>
                     )}
@@ -93,8 +101,8 @@ export function AddToAlbumModal() {
                   placeholder="Tên album mới..."
                   value={newAlbumName}
                   autoFocus
-                  onChange={(e) => setNewAlbumName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateAndAdd()}
+                  onChange={(event) => setNewAlbumName(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && handleCreateAndAdd()}
                   maxLength={100}
                 />
                 <button

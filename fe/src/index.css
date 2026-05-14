@@ -23,6 +23,12 @@
   --accent-dim: rgba(170, 107, 67, 0.12);
   --accent-glow: rgba(170, 107, 67, 0.22);
   --accent-glow-strong: rgba(170, 107, 67, 0.34);
+  --shadow-panel: 0 12px 36px rgba(70, 51, 35, 0.08);
+  --shadow-lift: 0 8px 24px rgba(81, 59, 43, 0.12);
+  --shadow-action: 0 4px 16px rgba(170, 107, 67, 0.22);
+  --shadow-action-strong: 0 8px 24px rgba(170, 107, 67, 0.28);
+  --overlay-warm: rgba(43, 33, 25, 0.42);
+  --overlay-soft: rgba(81, 59, 43, 0.08);
 
   --text-primary: #2b2119;
   --text-secondary: #7b6654;

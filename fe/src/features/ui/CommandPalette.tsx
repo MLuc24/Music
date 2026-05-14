@@ -22,6 +22,10 @@ export function CommandPalette() {
         event.preventDefault();
         setIsOpen(!useUIStore.getState().isCommandPaletteOpen);
       }
+
+      if (event.key === 'Escape' && useUIStore.getState().isCommandPaletteOpen) {
+        setIsOpen(false);
+      }
     };
 
     window.addEventListener('keydown', handler);
@@ -53,47 +57,64 @@ export function CommandPalette() {
 
         <div className="command-palette__results">
           <Section title="Điều hướng">
-            <CommandButton label="Về Home" onClick={() => {
-              setActiveView('home');
-              closePalette();
-            }} />
-            <CommandButton label="Mở Downloads" onClick={() => {
-              setActiveView('downloads');
-              closePalette();
-            }} />
-            <CommandButton label="Mở Favorites" onClick={() => {
-              setActiveView('favorites');
-              closePalette();
-            }} />
+            <CommandButton
+              label="Về tổng quan"
+              onClick={() => {
+                setActiveView('home');
+                closePalette();
+              }}
+            />
+            <CommandButton
+              label="Mở tải xuống"
+              onClick={() => {
+                setActiveView('downloads');
+                closePalette();
+              }}
+            />
+            <CommandButton
+              label="Mở yêu thích"
+              onClick={() => {
+                setActiveView('favorites');
+                closePalette();
+              }}
+            />
           </Section>
 
           <Section title="Bài hát">
-            {(tracks ?? []).map((track) => (
-              <CommandButton
-                key={track.id}
-                label={track.artist ? `${track.title} • ${track.artist}` : track.title}
-                onClick={async () => {
-                  await playTrack(track);
-                  closePalette();
-                }}
-                secondaryActionLabel="Phát tiếp"
-                onSecondaryAction={() => addToQueue([track], 'next')}
-              />
-            ))}
+            {(tracks ?? []).length ? (
+              (tracks ?? []).map((track) => (
+                <CommandButton
+                  key={track.id}
+                  label={track.artist ? `${track.title} • ${track.artist}` : track.title}
+                  onClick={async () => {
+                    await playTrack(track);
+                    closePalette();
+                  }}
+                  secondaryActionLabel="Phát tiếp"
+                  onSecondaryAction={() => addToQueue([track], 'next')}
+                />
+              ))
+            ) : (
+              <p className="command-palette__empty">Không có bài hát phù hợp.</p>
+            )}
           </Section>
 
-          <Section title="Albums">
-            {filteredAlbums.map((album) => (
-              <CommandButton
-                key={album.id}
-                label={album.name}
-                onClick={() => {
-                  setActiveView('albums');
-                  setSelectedAlbumId(album.id);
-                  closePalette();
-                }}
-              />
-            ))}
+          <Section title="Album">
+            {filteredAlbums.length ? (
+              filteredAlbums.map((album) => (
+                <CommandButton
+                  key={album.id}
+                  label={album.name}
+                  onClick={() => {
+                    setActiveView('albums');
+                    setSelectedAlbumId(album.id);
+                    closePalette();
+                  }}
+                />
+              ))
+            ) : (
+              <p className="command-palette__empty">Không có album phù hợp.</p>
+            )}
           </Section>
         </div>
       </div>

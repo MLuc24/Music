@@ -17,11 +17,11 @@ import './App.css';
 import './styles/shell.css';
 
 const NAV_ITEMS = [
-  { id: 'home', label: 'Home' },
-  { id: 'library', label: 'Library' },
-  { id: 'favorites', label: 'Favorites' },
-  { id: 'albums', label: 'Albums' },
-  { id: 'downloads', label: 'Downloads' },
+  { id: 'home', label: 'Tổng quan', icon: '⌂' },
+  { id: 'library', label: 'Thư viện', icon: '▣' },
+  { id: 'favorites', label: 'Yêu thích', icon: '♡' },
+  { id: 'albums', label: 'Album', icon: '◉' },
+  { id: 'downloads', label: 'Tải xuống', icon: '↓' },
 ] as const;
 
 function App() {
@@ -44,7 +44,7 @@ function App() {
           <div className="app-rail__brand-mark">N</div>
           <div>
             <p className="app-rail__brand-title">Nhạc</p>
-            <span className="app-rail__brand-subtitle">Local-first player</span>
+            <span className="app-rail__brand-subtitle">Nghe và lưu cục bộ</span>
           </div>
         </div>
 
@@ -54,7 +54,11 @@ function App() {
               key={item.id}
               className={`app-rail__link${activeView === item.id ? ' app-rail__link--active' : ''}`}
               onClick={() => setActiveView(item.id)}
+              aria-current={activeView === item.id ? 'page' : undefined}
             >
+              <span className="app-rail__link-icon" aria-hidden="true">
+                {item.icon}
+              </span>
               {item.label}
             </button>
           ))}
@@ -62,11 +66,11 @@ function App() {
 
         <div className="app-rail__footer">
           <button className="app-rail__shortcut" onClick={() => useUIStore.getState().setIsCommandPaletteOpen(true)}>
-            Command Palette
+            Tìm nhanh
             <span>Ctrl/Cmd + K</span>
           </button>
           <div className="app-rail__queue-indicator">
-            <span>Up next</span>
+            <span>Tiếp theo</span>
             <strong>{queue.length}</strong>
           </div>
         </div>
@@ -75,18 +79,26 @@ function App() {
       <div className="app-shell__content">
         <header className="app-header">
           <div>
-            <p className="app-header__eyebrow">Utility-first music app</p>
+            <p className="app-header__eyebrow">Ứng dụng nghe nhạc cục bộ</p>
             <h1 className="app-header__title">
               {activeView === 'home' && 'Tổng quan'}
               {activeView === 'library' && 'Thư viện'}
               {activeView === 'favorites' && 'Yêu thích'}
-              {activeView === 'albums' && 'Albums'}
-              {activeView === 'downloads' && 'Downloads'}
+              {activeView === 'albums' && 'Album'}
+              {activeView === 'downloads' && 'Tải xuống'}
             </h1>
           </div>
 
-          <button className="app-header__search" onClick={() => useUIStore.getState().setIsCommandPaletteOpen(true)}>
-            Tìm nhanh bài hát, album hoặc thao tác...
+          <button
+            className="app-header__search"
+            onClick={() => useUIStore.getState().setIsCommandPaletteOpen(true)}
+            aria-label="Mở Command Palette"
+          >
+            <span className="app-header__search-copy">
+              <strong>Tìm nhanh</strong>
+              <span>Bài hát, album hoặc thao tác</span>
+            </span>
+            <span className="app-header__search-shortcut">Ctrl/Cmd + K</span>
           </button>
         </header>
 
