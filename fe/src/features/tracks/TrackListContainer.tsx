@@ -24,6 +24,8 @@ const TRACK_ROW_GAP = 8;
 const TRACK_OVERSCAN = 8;
 const DELETE_DELAY_MS = 4000;
 
+type LibraryViewMode = 'grid' | 'list';
+
 interface TrackListContainerProps {
   favoriteOnly?: boolean;
   title?: string;
@@ -48,6 +50,7 @@ export function TrackListContainer({ favoriteOnly = false, title }: TrackListCon
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [bulkAlbumOpen, setBulkAlbumOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<LibraryViewMode>('grid');
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [rowHeight, setRowHeight] = useState(TRACK_ROW_ESTIMATE);
@@ -73,7 +76,7 @@ export function TrackListContainer({ favoriteOnly = false, title }: TrackListCon
     [tracks, pendingDeleteIds],
   );
 
-  const shouldVirtualize = displayTracks.length > 60 && viewportHeight > 0;
+  const shouldVirtualize = viewMode === 'list' && displayTracks.length > 60 && viewportHeight > 0;
   const visibleCount = shouldVirtualize
     ? Math.ceil(viewportHeight / rowHeight) + TRACK_OVERSCAN * 2
     : displayTracks.length;
@@ -270,7 +273,7 @@ export function TrackListContainer({ favoriteOnly = false, title }: TrackListCon
             className="track-list__search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm theo tên bài, nghệ sĩ hoặc URL..."
+            placeholder="Tìm trong thư viện"
             aria-label="Tìm kiếm bài hát"
           />
 
@@ -286,6 +289,27 @@ export function TrackListContainer({ favoriteOnly = false, title }: TrackListCon
               </option>
             ))}
           </select>
+
+          <div className="track-list__view-toggle" aria-label="Chế độ hiển thị">
+            <button
+              className={viewMode === 'list' ? 'track-list__view-btn track-list__view-btn--active' : 'track-list__view-btn'}
+              type="button"
+              onClick={() => setViewMode('list')}
+              aria-label="Hiển thị dạng danh sách"
+              aria-pressed={viewMode === 'list'}
+            >
+              ≡
+            </button>
+            <button
+              className={viewMode === 'grid' ? 'track-list__view-btn track-list__view-btn--active' : 'track-list__view-btn'}
+              type="button"
+              onClick={() => setViewMode('grid')}
+              aria-label="Hiển thị dạng lưới"
+              aria-pressed={viewMode === 'grid'}
+            >
+              ▦
+            </button>
+          </div>
 
           <button
             className="track-list__secondary-btn"
@@ -312,6 +336,37 @@ export function TrackListContainer({ favoriteOnly = false, title }: TrackListCon
 
       {!displayTracks.length ? (
         <EmptyState search={debouncedSearch} favoriteOnly={favoriteOnly} />
+      ) : viewMode === 'grid' ? (
+        <div className="track-grid" role="list">
+          {displayTracks.map((track) => (
+            <TrackCard
+              key={track.id}
+              track={track}
+              isActive={currentTrackId === track.id}
+              isPlaying={currentTrackId === track.id && isPlaying}
+              isSelected={selectedIds.includes(track.id)}
+              onSelect={(checked) =>
+                setSelectedIds((current) =>
+                  checked
+                    ? [...new Set([...current, track.id])]
+                    : current.filter((id) => id !== track.id),
+                )
+              }
+              onPlay={() => void handlePlay(track)}
+              onDelete={() => scheduleDelete([track])}
+              onToggleFavorite={() => toggleFavorite(track.id)}
+            />
+          ))}
+          <button
+            className="track-grid__add-card"
+            type="button"
+            onClick={() => document.querySelector<HTMLInputElement>('.downloader__input')?.focus()}
+          >
+            <span className="track-grid__add-icon">+</span>
+            <strong>Thêm bài hát</strong>
+            <small>Dán link YouTube hoặc thêm vào hàng đợi</small>
+          </button>
+        </div>
       ) : (
         <ul
           ref={listRef}
@@ -346,6 +401,7 @@ export function TrackListContainer({ favoriteOnly = false, title }: TrackListCon
                 onAddToAlbum={() => setPendingTrackForAlbum(track)}
                 onRename={(nextTitle, nextArtist) => handleRename(track, nextTitle, nextArtist)}
                 measureRef={absoluteIndex === startIndex ? measureTrackRow : undefined}
+                viewMode={viewMode}
               />
             );
           })}
@@ -394,6 +450,7 @@ interface TrackItemProps {
   onAddToAlbum: () => void;
   onRename: (title: string, artist: string | null) => void;
   measureRef?: (node: HTMLLIElement | null) => void;
+  viewMode: LibraryViewMode;
 }
 
 const TrackItem = memo(function TrackItem({
@@ -409,6 +466,7 @@ const TrackItem = memo(function TrackItem({
   onAddToAlbum,
   onRename,
   measureRef,
+  viewMode,
 }: TrackItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(track.title);
@@ -433,7 +491,7 @@ const TrackItem = memo(function TrackItem({
   };
 
   return (
-    <li ref={measureRef} className={`track-item${isActive ? ' track-item--active' : ''}`}>
+    <li ref={measureRef} className={`track-item track-item--${viewMode}${isActive ? ' track-item--active' : ''}`}>
       <label className="track-item__select">
         <input
           type="checkbox"
@@ -510,6 +568,10 @@ const TrackItem = memo(function TrackItem({
         )}
       </div>
 
+      <span className="track-item__artist-cell">{track.artist || 'Không rõ nghệ sĩ'}</span>
+      <span className="track-item__duration">{formatDuration(track.duration_seconds)}</span>
+      <span className="track-item__added">{formatAddedAt(track.created_at)}</span>
+
       <div className="track-item__actions">
         <button
           className={`track-item__fav-btn${track.is_favorite ? ' track-item__fav-btn--active' : ''}`}
@@ -531,6 +593,104 @@ const TrackItem = memo(function TrackItem({
     </li>
   );
 });
+
+interface TrackCardProps {
+  track: Track;
+  isActive: boolean;
+  isPlaying: boolean;
+  isSelected: boolean;
+  onSelect: (checked: boolean) => void;
+  onPlay: () => void;
+  onDelete: () => void;
+  onToggleFavorite: () => void;
+}
+
+function TrackCard({
+  track,
+  isActive,
+  isPlaying,
+  isSelected,
+  onSelect,
+  onPlay,
+  onDelete,
+  onToggleFavorite,
+}: TrackCardProps) {
+  return (
+    <article className={`track-card${isActive ? ' track-card--active' : ''}`} role="listitem">
+      <label className="track-card__select">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(event) => onSelect(event.target.checked)}
+          aria-label={`Chọn ${track.title}`}
+        />
+      </label>
+
+      <button className="track-card__cover" type="button" onClick={onPlay} aria-label={`Phát ${track.title}`}>
+        {track.thumbnail_url ? (
+          <img src={track.thumbnail_url} alt={track.title} loading="lazy" />
+        ) : (
+          <span className="track-card__placeholder">♪</span>
+        )}
+        <span className="track-card__play">
+          {isPlaying ? (
+            <span className="track-item__playing-bars">
+              <span />
+              <span />
+              <span />
+            </span>
+          ) : (
+            '▶'
+          )}
+        </span>
+      </button>
+
+      <div className="track-card__copy">
+        <h3>{track.title}</h3>
+        <p>{track.artist || 'Không rõ nghệ sĩ'}</p>
+      </div>
+
+      <div className="track-card__meta">
+        <span>◷ {formatDuration(track.duration_seconds)}</span>
+        <span>{formatAddedAt(track.created_at)}</span>
+      </div>
+
+      <div className="track-card__actions">
+        <button
+          className={track.is_favorite ? 'track-card__icon-btn track-card__icon-btn--active' : 'track-card__icon-btn'}
+          type="button"
+          onClick={onToggleFavorite}
+          aria-label={track.is_favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+        >
+          ♡
+        </button>
+        <button className="track-card__icon-btn" type="button" onClick={onDelete} aria-label={`Xóa ${track.title}`}>
+          ⋮
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function formatDuration(seconds: number | null) {
+  if (!seconds || seconds <= 0) return '--:--';
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.floor(seconds % 60);
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+function formatAddedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const diffDays = Math.floor((Date.now() - date.getTime()) / 86_400_000);
+
+  if (diffDays <= 0) return 'Hôm nay';
+  if (diffDays === 1) return 'Hôm qua';
+  if (diffDays < 7) return `${diffDays} ngày trước`;
+
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 function EmptyState({ search, favoriteOnly }: { search: string; favoriteOnly: boolean }) {
   if (search) {
