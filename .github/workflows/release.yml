@@ -70,6 +70,9 @@ jobs:
       - name: Copy FE output
         run: node scripts/copy-fe-dist.mjs
 
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild:electron:native
+
       # ── 8. Bundle BE with esbuild ─────────────────────────────────────────────
       - name: Bundle BE
         run: node be/esbuild.electron.mjs

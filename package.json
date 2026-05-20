@@ -1,6 +1,6 @@
 {
   "name": "nhac",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "private": true,
   "workspaces": [
     "fe",
@@ -16,12 +16,13 @@
     "build:be": "cd be && npm run build",
     "build:fe": "cd fe && npm run build",
     "build:fe:electron": "cross-env VITE_API_URL=/api npm run build:fe",
+    "rebuild:electron:native": "cross-env npm_config_runtime=electron npm_config_target=34.5.8 npm_config_disturl=https://electronjs.org/headers npm rebuild better-sqlite3",
     "copy:fe": "node scripts/copy-fe-dist.mjs",
     "bundle:be": "node be/esbuild.electron.mjs",
     "build:electron:ts": "cd electron && npm run build:ts",
-    "release:win": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:win",
-    "release:mac": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:mac",
-    "release:linux": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:linux",
-    "release:all": "npm run build:fe:electron && npm run copy:fe && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:all"
+    "release:win": "npm run build:fe:electron && npm run copy:fe && npm run rebuild:electron:native && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:win",
+    "release:mac": "npm run build:fe:electron && npm run copy:fe && npm run rebuild:electron:native && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:mac",
+    "release:linux": "npm run build:fe:electron && npm run copy:fe && npm run rebuild:electron:native && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:linux",
+    "release:all": "npm run build:fe:electron && npm run copy:fe && npm run rebuild:electron:native && npm run bundle:be && npm run build:electron:ts && cd electron && npm run build:all"
   }
 }
